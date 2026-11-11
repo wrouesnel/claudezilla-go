@@ -136,7 +136,7 @@ func New(opts Options) (*Server, error) {
 		autostart:  client.NewAutostart(paths.Socket),
 		activated:  map[string]bool{},
 	}
-	s.screenshots = screenshotFiles{enabled: os.Getenv("CLAUDEZILLA_SCREENSHOT_FILES") == "1", agentID: s.agentID}
+	s.screenshots = newScreenshotFiles(s.agentID)
 
 	switch mode := argValue(opts.Args, "--tools"); {
 	case mode == "lazy":

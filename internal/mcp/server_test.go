@@ -83,3 +83,30 @@ func TestWithoutKeysKeepsOrder(t *testing.T) {
 		t.Fatal(string(got))
 	}
 }
+
+func TestOutputDir(t *testing.T) {
+	out := t.TempDir()
+	t.Setenv("CLAUDEZILLA_OUTPUT_DIR", out)
+	t.Setenv("CLAUDEZILLA_OUTPUT_DIR_REPORTED", "/agent/run")
+	t.Setenv("CLAUDEZILLA_SCREENSHOT_FILES", "1")
+	sf := newScreenshotFiles("agent_0123456789abcdef_1")
+
+	p, err := sf.write([]byte("img"), "png")
+	if err != nil || filepath.Dir(p) != out {
+		t.Fatalf("screenshot file %s %v", p, err)
+	}
+	if got := sf.report(p); got != filepath.Join("/agent/run", filepath.Base(p)) {
+		t.Fatalf("reported %s", got)
+	}
+	for in, want := range map[string]string{"shot.png": "shot.png", "/agent/run/a.png": "a.png", out + "/b.png": "b.png"} {
+		got, err := sf.savePathIn(in, "png")
+		if err != nil || got != filepath.Join(out, want) {
+			t.Errorf("%s: %s %v", in, got, err)
+		}
+	}
+	for _, bad := range []string{"/etc/x.png", "../x.png", "sub/x.png", "x.gif", "/agent/run/../x.png"} {
+		if _, err := sf.savePathIn(bad, "png"); err == nil {
+			t.Errorf("%s accepted", bad)
+		}
+	}
+}

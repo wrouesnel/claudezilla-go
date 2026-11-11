@@ -31,6 +31,78 @@ const screenshotKeep = 50
 type screenshotFiles struct {
 	enabled bool
 	agentID string
+	// outDir (CLAUDEZILLA_OUTPUT_DIR), when set, is where every file is
+	// written, and the only place savePath may name. reportDir
+	// (CLAUDEZILLA_OUTPUT_DIR_REPORTED, default outDir) is how that directory
+	// is named in tool results: a client that runs this server on another
+	// machine and copies the directory back reports the path the agent sees.
+	outDir, reportDir string
+}
+
+func newScreenshotFiles(agentID string) screenshotFiles {
+	sf := screenshotFiles{enabled: os.Getenv("CLAUDEZILLA_SCREENSHOT_FILES") == "1", agentID: agentID}
+	if d := os.Getenv("CLAUDEZILLA_OUTPUT_DIR"); d != "" {
+		sf.outDir = filepath.Clean(d)
+		sf.reportDir = sf.outDir
+		if r := os.Getenv("CLAUDEZILLA_OUTPUT_DIR_REPORTED"); r != "" {
+			sf.reportDir = filepath.Clean(r)
+		}
+	}
+	return sf
+}
+
+// report maps a written path to the path given to the agent.
+func (sf screenshotFiles) report(written string) string {
+	if sf.outDir == "" {
+		return written
+	}
+	rel, err := filepath.Rel(sf.outDir, written)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return written
+	}
+	return filepath.Join(sf.reportDir, rel)
+}
+
+// savePathIn resolves an agent's savePath inside outDir: a relative path,
+// or an absolute one under reportDir (as the agent sees it) or outDir.
+func (sf screenshotFiles) savePathIn(savePath, format string) (string, error) {
+	switch {
+	case savePath == "":
+		return "", errors.New("savePath must be a non-empty string")
+	case strings.ContainsRune(savePath, 0):
+		return "", errors.New("savePath contains null byte")
+	case strings.Contains(savePath, ".."):
+		return "", errors.New("savePath contains path traversal")
+	}
+	rel := savePath
+	if filepath.IsAbs(savePath) {
+		clean := filepath.Clean(savePath)
+		found := false
+		for _, base := range []string{sf.reportDir, sf.outDir} {
+			if r, err := filepath.Rel(base, clean); err == nil && !strings.HasPrefix(r, "..") {
+				rel, found = r, true
+				break
+			}
+		}
+		if !found {
+			return "", fmt.Errorf("savePath must be inside %s (or relative to it)", sf.reportDir)
+		}
+	}
+	ext := strings.ToLower(filepath.Ext(rel))
+	valid := []string{".png"}
+	if format == "jpeg" {
+		valid = []string{".jpg", ".jpeg"}
+	}
+	if !slices.Contains(valid, ext) {
+		return "", errors.New("savePath must end in .jpg/.jpeg for JPEG or .png for PNG")
+	}
+	if strings.ContainsRune(rel, filepath.Separator) {
+		return "", fmt.Errorf("savePath must be a file name directly in %s", sf.reportDir)
+	}
+	if err := os.MkdirAll(sf.outDir, 0o700); err != nil {
+		return "", err
+	}
+	return filepath.Join(sf.outDir, rel), nil
 }
 
 // allowedSaveRoots: temp dir, /tmp and the working directory, as real paths
@@ -119,6 +191,9 @@ func saveScreenshot(data []byte, savePath, format string) (string, error) {
 // (CLAUDEZILLA_SCREENSHOT_FILES=1), pruned to the newest screenshotKeep.
 func (sf screenshotFiles) write(data []byte, format string) (string, error) {
 	dir := filepath.Join(os.TempDir(), "claudezilla-screenshots")
+	if sf.outDir != "" {
+		dir = sf.outDir
+	}
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
@@ -173,10 +248,20 @@ func (s *Server) screenshotResult(result json.RawMessage, savePath string, hasSa
 		if err != nil {
 			return errorResult("Error: invalid screenshot data: " + err.Error()), true
 		}
-		if hasSavePath {
+		switch {
+		case hasSavePath && s.screenshots.outDir != "":
+			var p string
+			if p, err = s.screenshots.savePathIn(savePath, format); err == nil {
+				if err = writePrivateFile(p, data, true); err == nil {
+					saved = s.screenshots.report(p)
+				}
+			}
+		case hasSavePath:
 			saved, err = saveScreenshot(data, savePath, format)
-		} else {
-			saved, err = s.screenshots.write(data, format)
+		default:
+			if saved, err = s.screenshots.write(data, format); err == nil {
+				saved = s.screenshots.report(saved)
+			}
 		}
 		if err != nil {
 			return errorResult("Error: " + err.Error()), true

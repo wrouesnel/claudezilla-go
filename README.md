@@ -102,6 +102,8 @@ in the popup: **Claudezilla → Security → Allow JavaScript evaluation**. On t
 | `CLAUDEZILLA_AUTOSTART_WAIT_MS` / `_RETRY_COOLDOWN_MS` / `_LAUNCH_TIMEOUT_MS` | MCP server | How long to wait for the socket (45 s), how long before retrying a failed start (60 s), and how long the start command may run (20 s). |
 | `CLAUDEZILLA_TOOL_MODE` | MCP server | `lazy` lists only `firefox_activate` until a category is activated (same as `--tools lazy`). |
 | `CLAUDEZILLA_SCREENSHOT_FILES` | MCP server | `1` also writes screenshots to `claudezilla-screenshots/` in the temp directory, for harnesses that can't show images. |
+| `CLAUDEZILLA_OUTPUT_DIR` | MCP server | Write every file (screenshot copies and `savePath`) here. `savePath` must then be a file name in this directory. For running the MCP server on the browser's machine on behalf of a remote agent, where a client copies the directory back. |
+| `CLAUDEZILLA_OUTPUT_DIR_REPORTED` | MCP server | How tool results name that directory (default: the same path), such as where the agent will find the copies. |
 | `CLAUDEZILLA_AGENT_TIMEOUT_MS` | MCP server | Close an agent's tabs after this long without a call (default 10 minutes; `0` disables). |
 | `CLAUDEZILLA_ALLOW_QUIT` | host (from Firefox's environment) | Allows `quitBrowser`. Set it only for a browser that exists for agents. |
 

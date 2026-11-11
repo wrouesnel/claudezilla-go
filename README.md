@@ -64,9 +64,15 @@ install/install-desktop-host.sh          # native host only (for remote agents)
 install/install-desktop-host.sh --mcp    # also Claude Code on this machine
 ```
 
-Then install the XPI (`make xpi`). Release Firefox needs it signed by Mozilla, which can be done
-unlisted, so it isn't published. ESR, Developer Edition and Nightly can run it unsigned with
-`xpinstall.signatures.required=false`.
+Then install the XPI. Release Firefox needs it signed by Mozilla: `make sign` does that through
+your addons.mozilla.org API key (`AMO_JWT_ISSUER`, `AMO_JWT_SECRET`), as an unlisted add-on that
+isn't published. Open the signed file in Firefox to install it. ESR, Developer Edition and Nightly
+can run the unsigned `make xpi` build with `xpinstall.signatures.required=false`.
+
+Coming from upstream Claudezilla? `install/uninstall-upstream.sh --dry-run` shows what it would
+remove (its native host manifest, the Node MCP registration, the extra permission rules, the skill
+link and the headless unit). Run it without `--dry-run`, then remove the old extension in
+about:addons.
 
 **Remote control of your desktop from the agent host**
 

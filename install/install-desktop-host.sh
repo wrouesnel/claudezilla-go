@@ -30,6 +30,7 @@ if (( WITH_MCP )); then
   # Everything except evaluate, loops and config changes, which keep prompting.
   mapfile -t RULES < <(python3 -I -c 'import json,sys; print("\n".join(json.load(open(sys.argv[1]))["allow"]))' "$SRC/install/claude-permissions.json")
   add_permissions "$HOME/.claude/settings.json" "${RULES[@]}"
+  install_skill
 fi
 
 cat <<MSG

@@ -78,3 +78,13 @@ if os.path.exists(path):
 os.replace(tmp, path)
 PY
 }
+
+# Copy (not link) the claudezilla-browser skill for Claude Code, so later edits
+# to the checkout don't change it.
+install_skill() {
+  local dest="$HOME/.claude/skills/claudezilla-browser"
+  echo "== Skill claudezilla-browser -> $dest"
+  [[ -L "$dest" ]] && rm -f "$dest"
+  install -d -m 0755 "$dest"
+  install -m 0644 "$SRC/plugin/skills/claudezilla-browser/SKILL.md" "$dest/SKILL.md"
+}

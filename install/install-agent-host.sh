@@ -119,6 +119,7 @@ if (( DO_MCP )); then
   claude mcp add --scope user claudezilla \
     -e "CLAUDEZILLA_AUTOSTART_CMD=[\"systemctl\",\"--user\",\"start\",\"$UNIT\"]" \
     -- "$MCP_BIN"
+  install_skill
 fi
 
 if (( DO_PERMS )); then

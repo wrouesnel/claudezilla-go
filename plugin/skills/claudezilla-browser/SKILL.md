@@ -75,15 +75,14 @@ Claudezilla drives the user's real Firefox: open tabs, navigate, read pages, cli
 ## Harness notes
 
 - **Claude Code:** screenshots arrive as inline images.
-- **omp and Mercury Agent:** MCP images are not shown inline. Run the server with `CLAUDEZILLA_SCREENSHOT_FILES=1` (the omp installer target writes it into `~/.omp/agent/mcp.json`; the Mercury target prints it in the config to add); each screenshot taken without an explicit `savePath` is then written to `claudezilla-screenshots/` in the OS temp directory (`os.tmpdir()`, newest 50 kept) and the text block reports `savedPath`. Open `savedPath` with the harness's file reader to see the image.
-- **Pi:** the default codemode exposure works; no extra settings are needed. The printed config sets `CLAUDEZILLA_SCREENSHOT_FILES=1`, so screenshots also report a `savedPath`.
-- **Hermes Agent:** set `CLAUDEZILLA_SCREENSHOT_FILES: "1"` in the server `env` and add `~/.agents/skills` to `skills.external_dirs` so this skill is found.
+- **Harnesses that can't show MCP images:** run the server with `CLAUDEZILLA_SCREENSHOT_FILES=1`. Each screenshot taken without an explicit `savePath` is then also written to `claudezilla-screenshots/` in the temp directory (newest 50 kept), or to `CLAUDEZILLA_OUTPUT_DIR` when set, and the text block reports `savedPath`. Open it with the harness's file reader.
 - All tools are listed by default. Lazy loading (a single `firefox_activate` gateway) is opt-in via `--tools lazy` or `CLAUDEZILLA_TOOL_MODE=lazy`; in that mode call `firefox_activate` first.
+- In this fork an agent can't turn private mode off, type into password fields or open `file:` URLs. Ask the user to sign in themselves; serve local files over `http://localhost`.
 
 ## Troubleshooting
 
 - **Connection errors:** run `firefox_diagnose`. It checks the socket file, the auth token, the connection and the extension version.
-- **Firefox not running:** set `CLAUDEZILLA_AUTOSTART_CMD` to a JSON argv array that starts Firefox and returns, e.g. `["open","-a","Firefox"]` (macOS) or `["systemctl","--user","start","claudezilla-browser"]` (the Linux installer's unit). The server runs it when no host answers and waits for it to exit (20 s by default, `CLAUDEZILLA_AUTOSTART_LAUNCH_TIMEOUT_MS`); a command that stays in the foreground, such as `["firefox"]`, is killed and counted as a failed start.
+- **Firefox not running:** set `CLAUDEZILLA_AUTOSTART_CMD` to a JSON argv array that starts Firefox and returns, e.g. `["open","-a","Firefox"]` (macOS) or `["systemctl","--user","start","claudezilla-agent-browser"]` (the agent-host installer's unit, which sets this for you). The server runs it when no host answers and waits for it to exit (20 s by default, `CLAUDEZILLA_AUTOSTART_LAUNCH_TIMEOUT_MS`); a command that stays in the foreground, such as `["firefox"]`, is killed and counted as a failed start.
 - **Custom socket directory:** `CLAUDEZILLA_IPC_DIR` must be identical for Firefox (native host) and the MCP server, otherwise they cannot find each other.
 - **Stale ref:** re-read the page (see above).
 - **`TAB_UNAVAILABLE` / tab gone:** call `firefox_get_tabs` or open a new tab with `firefox_create_window`.

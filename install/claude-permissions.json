@@ -1,5 +1,5 @@
 {
-  "_comment": "Claude Code permission allow-list for the Claudezilla MCP server. Keep these tool names in sync with the tool definitions in mcp/server.js. firefox_evaluate is deliberately absent: it executes JavaScript in the page, so it stays behind the extension's own opt-in (popup -> Settings -> Allow JavaScript evaluation). Add \"mcp__claudezilla__firefox_evaluate\" by hand once that toggle is on.",
+  "_comment": "Claude Code permission allow-list for the Claudezilla MCP server (hardened build). firefox_evaluate is absent so every call prompts (it also needs the popup opt-in). firefox_start_loop and firefox_set_config are absent so a prompt-injected agent cannot start a self-continuing loop or change its own domain policy without the user approving it.",
   "allow": [
     "mcp__claudezilla__firefox_activate",
     "mcp__claudezilla__firefox_attach_tab",
@@ -29,10 +29,7 @@
     "mcp__claudezilla__firefox_resize_window",
     "mcp__claudezilla__firefox_screenshot",
     "mcp__claudezilla__firefox_scroll",
-    "mcp__claudezilla__firefox_set_config",
-    "mcp__claudezilla__firefox_set_private_mode",
     "mcp__claudezilla__firefox_set_viewport",
-    "mcp__claudezilla__firefox_start_loop",
     "mcp__claudezilla__firefox_stop_loop",
     "mcp__claudezilla__firefox_type",
     "mcp__claudezilla__firefox_wait_for"

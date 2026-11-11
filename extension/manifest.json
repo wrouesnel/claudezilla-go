@@ -1,12 +1,12 @@
 {
   "manifest_version": 2,
-  "name": "Claudezilla",
-  "version": "0.7.7",
+  "name": "Claudezilla (hardened)",
+  "version": "0.7.7.2",
   "description": "Browser automation for Claude Code via Firefox. No Chrome, no telemetry. Navigate, screenshot, click, type, extract data via MCP.",
-  "author": "Chris Lyons <support@boot.industries>",
+  "author": "Chris Lyons (upstream); hardened repack",
   "browser_specific_settings": {
     "gecko": {
-      "id": "claudezilla@boot.industries",
+      "id": "claudezilla-hardened@wrouesnel.github.io",
       "strict_min_version": "140.0",
       "data_collection_permissions": {
         "required": [
@@ -50,5 +50,5 @@
   "icons": {
     "48": "icons/claudezilla-48.svg"
   },
-  "content_security_policy": "script-src 'self'; object-src 'self'"
+  "content_security_policy": "default-src 'self'; script-src 'self'; object-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; frame-ancestors 'none'"
 }

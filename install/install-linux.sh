@@ -67,14 +67,14 @@ echo "Created host wrapper: $WRAPPER_PATH"
 
 mkdir -p "$NATIVE_HOSTS_DIR"
 
-MANIFEST_PATH="$NATIVE_HOSTS_DIR/claudezilla.json"
+MANIFEST_PATH="$NATIVE_HOSTS_DIR/claudezilla_hardened.json"
 cat > "$MANIFEST_PATH" << EOF
 {
-  "name": "claudezilla",
+  "name": "claudezilla_hardened",
   "description": "Claude Code Firefox browser automation bridge",
   "path": "$WRAPPER_PATH",
   "type": "stdio",
-  "allowed_extensions": ["claudezilla@boot.industries"]
+  "allowed_extensions": ["claudezilla-hardened@wrouesnel.github.io"]
 }
 EOF
 chmod 644 "$MANIFEST_PATH"
@@ -88,7 +88,7 @@ MCP_DIR="$PROJECT_DIR/mcp"
 if [ -f "$MCP_DIR/package.json" ]; then
     command -v npm >/dev/null 2>&1 || { echo "Error: npm not found. Please install Node.js and npm first."; exit 1; }
     echo "Installing MCP dependencies..."
-    cd "$MCP_DIR" && npm install --quiet --ignore-scripts
+    cd "$MCP_DIR" && npm ci --quiet --ignore-scripts --no-fund
     cd "$PROJECT_DIR"
     echo "MCP dependencies installed."
 fi
@@ -357,7 +357,7 @@ USERJS_EOF
 
     # Sideload extension into profile
     [ -f "$XPI_PATH" ] || { echo "Error: XPI not found at $XPI_PATH. Build the extension first."; exit 1; }
-    cp "$XPI_PATH" "$PROFILE_DIR/extensions/claudezilla@boot.industries.xpi" || { echo "Error: Failed to copy XPI to Firefox profile"; exit 1; }
+    cp "$XPI_PATH" "$PROFILE_DIR/extensions/claudezilla-hardened@wrouesnel.github.io.xpi" || { echo "Error: Failed to copy XPI to Firefox profile"; exit 1; }
     echo "  Extension sideloaded into profile: $PROFILE_DIR"
 
     # Register profile in profiles.ini

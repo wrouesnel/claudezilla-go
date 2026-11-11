@@ -422,8 +422,10 @@ function allowedSaveRoots() {
  * Write base64 image bytes to a file created 0600 that refuses to follow a
  * symlink at the final path component.
  */
-function writePrivateFile(path, base64Data) {
-  const flags = constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | (constants.O_NOFOLLOW ?? 0);
+function writePrivateFile(path, base64Data, { exclusive = false } = {}) {
+  // Hardened: agent-chosen paths are created exclusively, so a screenshot can
+  // never overwrite an existing file.
+  const flags = constants.O_WRONLY | constants.O_CREAT | (exclusive ? constants.O_EXCL : constants.O_TRUNC) | (constants.O_NOFOLLOW ?? 0);
   const fd = openSync(path, flags, 0o600);
   try {
     const bytes = Buffer.from(base64Data, 'base64');
@@ -468,7 +470,7 @@ function saveScreenshotToDisk(base64Data, savePath, format) {
   const inside = roots.some((root) => parent === root || parent.startsWith(root.endsWith(sep) ? root : root + sep));
   if (!inside) throw new Error(`savePath must be inside one of: ${roots.join(', ')}`);
 
-  writePrivateFile(join(parent, basename(absPath)), base64Data);
+  writePrivateFile(join(parent, basename(absPath)), base64Data, { exclusive: true });
   return absPath;
 }
 
@@ -1290,7 +1292,7 @@ const TOOLS = [
         },
         maxIterations: {
           type: 'number',
-          description: 'Maximum iterations before stopping (default: 0 = unlimited, use with caution)',
+          description: 'Maximum iterations before stopping (default: 10, max: 50)',
         },
         completionPromise: {
           type: 'string',
@@ -1377,21 +1379,6 @@ const TOOLS = [
   },
 
   // ===== SETTINGS =====
-  {
-    name: 'firefox_set_private_mode',
-    description: 'Enable or disable private (incognito) browsing mode. When disabled, new windows use regular browsing with persistent cookies — useful for sites requiring login (e.g., X.com). Default: enabled (private).',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        enabled: {
-          type: 'boolean',
-          description: 'true = private/incognito windows (default), false = regular windows with persistent cookies',
-        },
-      },
-      required: ['enabled'],
-    },
-  },
-
   // ===== DIAGNOSTICS =====
   {
     name: 'firefox_diagnose',
@@ -1457,7 +1444,6 @@ const TOOL_CATEGORIES = {
   firefox_loop_status: 'loop',
   firefox_set_config: 'config',
   firefox_set_viewport: 'config',
-  firefox_set_private_mode: 'config',
   firefox_handle_consent: 'config',
   firefox_close_window: 'config',
   firefox_resize_window: 'config',
@@ -1626,7 +1612,6 @@ const TOOL_TO_COMMAND = {
   // Consent
   firefox_handle_consent: 'handleConsent',
   // Settings
-  firefox_set_private_mode: 'setPrivateMode',
   // Config (handled locally)
   firefox_set_config: 'setConfig',
   // Diff (handled locally)
@@ -1831,36 +1816,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const savePathArg = args?.savePath;
     delete commandParams.savePath;
 
-    const OWNERSHIP_COMMANDS = [
-      'firefox_create_window',
-      'firefox_attach_tab',
-      'firefox_close_tab',
-      'firefox_close_window',
-      'firefox_navigate',
-      'firefox_get_content',
-      'firefox_click',
-      'firefox_type',
-      'firefox_scroll',
-      'firefox_evaluate',
-      'firefox_get_element',
-      'firefox_get_console',
-      'firefox_get_network',
-      'firefox_wait_for',
-      'firefox_get_page_state',
-      'firefox_get_accessibility_snapshot',
-      'firefox_find',
-      'firefox_press_key',
-      'firefox_screenshot',
-      'firefox_request_tab_space',
-      'firefox_grant_tab_space',
-      'firefox_get_slot_requests',
-      'firefox_handle_consent',
-    ];
-    if (OWNERSHIP_COMMANDS.includes(name)) {
-      commandParams.agentId = AGENT_ID;
-      // Update heartbeat for this agent
-      updateAgentHeartbeat(AGENT_ID);
-    }
+    // Hardened: every command carries this server's own agent ID. A caller-
+    // supplied agentId (e.g. firefox_detach_tab's) is never forwarded, so one
+    // agent cannot act as another.
+    delete commandParams.agentId;
+    commandParams.agentId = AGENT_ID;
+    updateAgentHeartbeat(AGENT_ID);
 
     // Loop commands: forward Claude Code session ID so concurrent sessions
     // don't share loop state. Host falls back to DEFAULT_SESSION when absent.

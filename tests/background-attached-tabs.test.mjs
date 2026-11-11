@@ -53,6 +53,7 @@ function createHarness({
   timers = { setTimeout, clearTimeout },
   incognitoAccess = true,
   contentResults = {},
+  managed = null,
 } = {}) {
   const storage = structuredClone(initialStorage);
   const windows = new Map((seededWindows ?? [{ id: 7, incognito: false }]).map((win) => [win.id, { ...win }]));
@@ -100,6 +101,12 @@ function createHarness({
         },
         async set(values) {
           Object.assign(storage, structuredClone(values));
+        },
+      },
+      managed: {
+        async get() {
+          if (!managed) throw new Error('Managed storage manifest not found');
+          return structuredClone(managed);
         },
       },
     },
@@ -679,7 +686,8 @@ describe('dedicated window keeps the driven tab selected', () => {
   });
 
   it('in an adopted window, never changes the user\'s selected tab', async () => {
-    const harness = createHarness({ allowTabCreate: true });
+    // Hardened build: only the user (popup storage) can turn private mode off.
+    const harness = createHarness({ allowTabCreate: true, storage: { claudezilla: { privateMode: false } } });
     const created = await harness.command('createWindow', { url: 'https://example.test/agent', agentId: 'agent-a', private: false });
     assert.equal(created.success, true, created.error);
     assert.equal(created.result.isNewWindow, false);
@@ -916,5 +924,104 @@ describe('screenshot sizing', () => {
     assert.equal(screenshot.success, false);
     assert.match(screenshot.error, /region must lie within the viewport \(1440x900 CSS px\)/);
     assert.deepEqual(harness.calls.captureOpts, []);
+  });
+});
+
+describe('hardened build policies', () => {
+  it('an agent cannot opt out of private mode with private:false', async () => {
+    const harness = createHarness({ allowTabCreate: true });
+    const created = await harness.command('createWindow', { url: 'https://example.test/agent', agentId: 'agent-a', private: false });
+    assert.equal(created.success, false);
+    assert.match(created.error, /Could not open a private window/);
+  });
+
+  it('rejects tab-targeting commands without an agentId', async () => {
+    const harness = createHarness({ allowTabCreate: true, storage: { claudezilla: { privateMode: false } } });
+    const created = await harness.command('createWindow', { url: 'https://example.test/agent', agentId: 'agent-a' });
+    assert.equal(created.success, true, created.error);
+    const res = await harness.command('getContent', { tabId: created.result.tabId });
+    assert.equal(res.success, false);
+    assert.match(res.error, /agentId is required/);
+  });
+
+  it('rejects another agent driving a pool tab, without revealing its full ID', async () => {
+    const harness = createHarness({ allowTabCreate: true, storage: { claudezilla: { privateMode: false } } });
+    const created = await harness.command('createWindow', { url: 'https://example.test/agent', agentId: 'agent-aaaaaaaaaaaaaaaa' });
+    assert.equal(created.success, true, created.error);
+    const res = await harness.command('getContent', { tabId: created.result.tabId, agentId: 'agent-b' });
+    assert.equal(res.success, false);
+    assert.match(res.error, /OWNERSHIP/);
+    assert.doesNotMatch(res.error, /agent-aaaaaaaaaaaaaaaa/);
+  });
+});
+
+describe('hardened build: navigation and network capture', () => {
+  async function setup() {
+    const harness = createHarness({ allowTabCreate: true, storage: { claudezilla: { privateMode: false } } });
+    const created = await harness.command('createWindow', { url: 'https://example.test/agent', agentId: 'agent-a' });
+    assert.equal(created.success, true, created.error);
+    return { harness, tabId: created.result.tabId };
+  }
+
+  it('refuses file: URLs', async () => {
+    const harness = createHarness({ allowTabCreate: true, storage: { claudezilla: { privateMode: false } } });
+    const res = await harness.command('createWindow', { url: 'file:///etc/passwd', agentId: 'agent-a' });
+    assert.equal(res.success, false);
+    assert.match(res.error, /URL scheme not allowed: file:/);
+  });
+
+  it('records only managed tabs, strips sensitive headers and redacts fragments', async () => {
+    const { harness, tabId } = await setup();
+    const wr = harness.browser.webRequest;
+    wr.onBeforeRequest.emit({ requestId: 'r1', url: 'https://bank.test/private', method: 'GET', type: 'xhr', tabId: 9999, timeStamp: 1 });
+    wr.onBeforeRequest.emit({ requestId: 'r2', url: 'https://example.test/cb?code=abc&q=1#access_token=xyz', method: 'GET', type: 'xhr', tabId, timeStamp: 1 });
+    wr.onCompleted.emit({ requestId: 'r2', statusCode: 200, timeStamp: 5, responseHeaders: [
+      { name: 'Set-Cookie', value: 'sid=1' }, { name: 'X-CSRF-Token', value: 't' }, { name: 'Content-Type', value: 'text/html' },
+    ] });
+    const res = await harness.command('getNetworkRequests', { agentId: 'agent-a', includeHeaders: true, limit: 50 });
+    assert.equal(res.success, true, res.error);
+    const text = JSON.stringify(res.result);
+    assert.doesNotMatch(text, /bank\.test/);
+    assert.doesNotMatch(text, /abc|xyz|sid=1|Set-Cookie|X-CSRF/i);
+    assert.match(text, /Content-Type/);
+  });
+});
+
+describe('managed policy (agent-host mode)', () => {
+  const AGENT_HOST = { allowEvaluate: true, privateMode: false };
+
+  it('forces managed settings into storage.local, overriding the user', async () => {
+    const harness = createHarness({ managed: AGENT_HOST, storage: { claudezilla: { privateMode: true, allowEvaluate: false, showWatermark: true } } });
+    await harness.command('ping');
+    assert.deepEqual(structuredClone(harness.storage.claudezilla), { privateMode: false, allowEvaluate: true, showWatermark: true });
+  });
+
+  it('opens normal (non-private) windows under policy', async () => {
+    const harness = createHarness({ managed: AGENT_HOST, allowTabCreate: true });
+    const res = await harness.command('createWindow', { url: 'https://example.test/agent', agentId: 'agent-a' });
+    assert.equal(res.success, true, res.error);
+    assert.equal(res.result.isPrivate, false);
+  });
+
+  it('changes nothing without a managed-storage manifest', async () => {
+    const harness = createHarness({ allowTabCreate: true, storage: { claudezilla: { privateMode: false } } });
+    await harness.command('ping');
+    assert.deepEqual(structuredClone(harness.storage.claudezilla), { privateMode: false });
+  });
+});
+
+describe('content script readiness', () => {
+  it('waits for a loading page\'s content script instead of failing', async () => {
+    const harness = createHarness({ allowTabCreate: true, storage: { claudezilla: { privateMode: false } } });
+    const created = await harness.command('createWindow', { url: 'https://example.test/agent', agentId: 'agent-a' });
+    assert.equal(created.success, true, created.error);
+    const real = harness.browser.tabs.sendMessage;
+    let failures = 2;
+    harness.browser.tabs.sendMessage = async (...args) => {
+      if (failures-- > 0) throw new Error('Could not establish connection. Receiving end does not exist.');
+      return real(...args);
+    };
+    const res = await harness.command('getContent', { tabId: created.result.tabId, agentId: 'agent-a' });
+    assert.equal(res.success, true, res.error);
   });
 });

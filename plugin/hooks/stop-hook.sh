@@ -27,10 +27,21 @@ elif [[ -n "${XDG_RUNTIME_DIR:-}" ]] && [[ -d "$XDG_RUNTIME_DIR" ]]; then
 elif [[ -d "$HOME/.claudezilla" ]]; then
   IPC_DIR="$HOME/.claudezilla"
 else
-  IPC_DIR="${TMPDIR:-/tmp}"
+  # Hardened: never trust a shared temp dir, where another user could plant
+  # a socket and token and inject a prompt through this hook.
+  exit 0
 fi
 SOCKET_PATH="$IPC_DIR/claudezilla.sock"
 TOKEN_FILE="$IPC_DIR/claudezilla-auth.token"
+
+# Hardened: only trust a socket and token we own, with a token not readable
+# by group or others.
+if [[ ! -O "$SOCKET_PATH" ]] || [[ ! -O "$TOKEN_FILE" ]]; then
+  exit 0
+fi
+if [[ -n "$(find "$TOKEN_FILE" -maxdepth 0 -perm /077 2>/dev/null)" ]]; then
+  exit 0
+fi
 
 # If socket doesn't exist, Claudezilla isn't running - allow exit
 if [[ ! -S "$SOCKET_PATH" ]]; then

@@ -1501,6 +1501,11 @@ async function type(params) {
     throw new Error(`Element is not editable: ${params.ref ?? selector}`);
   }
 
+  // Hardened: never type into password fields. The user signs in themselves.
+  if (element.tagName === 'INPUT' && (element.type || '').toLowerCase() === 'password') {
+    throw new Error('PASSWORD_FIELD: Typing into password fields is disabled in this build. Ask the user to sign in.');
+  }
+
   // Show focusglow on input element
   moveFocusTo(element);
 

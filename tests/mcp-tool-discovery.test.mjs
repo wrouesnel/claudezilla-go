@@ -14,7 +14,7 @@ function parseResponses(stdout) {
 
 // Sends initialize + tools/list, then `requests`. Resolves as soon as the last
 // request is answered, or after `waitMs` at the latest.
-function runServerRpc(args = [], env = {}, { requests = [], waitMs = 400 } = {}) {
+function runServerRpc(args = [], env = {}, { requests = [], waitMs = 3000 } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn('node', ['mcp/server.js', ...args], {
       cwd: new URL('../', import.meta.url).pathname,

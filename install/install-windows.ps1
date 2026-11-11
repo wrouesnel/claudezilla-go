@@ -42,11 +42,11 @@ $ProjectDir = Split-Path -Parent $ScriptDir
 $HostPath = Join-Path $ProjectDir "host\index.js"
 
 # Firefox native messaging registry path
-$RegistryPath = "HKCU:\Software\Mozilla\NativeMessagingHosts\claudezilla"
+$RegistryPath = "HKCU:\Software\Mozilla\NativeMessagingHosts\claudezilla_hardened"
 
 # Native manifest location (user's AppData)
 $ManifestDir = "$env:APPDATA\claudezilla"
-$ManifestPath = Join-Path $ManifestDir "claudezilla.json"
+$ManifestPath = Join-Path $ManifestDir "claudezilla_hardened.json"
 
 Write-Host ""
 Write-Host "Claudezilla Native Host Installer for Windows"
@@ -101,11 +101,11 @@ Write-Host "[OK] Created wrapper batch file: $BatPath"
 # Create native messaging manifest using ConvertTo-Json (safe serialization)
 # Note: path points to bat wrapper, no args field (not part of Firefox spec)
 $ManifestObject = @{
-    name = "claudezilla"
+    name = "claudezilla_hardened"
     description = "Claudezilla native messaging host for Firefox browser automation"
     path = $BatPath
     type = "stdio"
-    allowed_extensions = @("claudezilla@boot.industries")
+    allowed_extensions = @("claudezilla-hardened@wrouesnel.github.io")
 }
 $ManifestContent = $ManifestObject | ConvertTo-Json -Depth 10
 
@@ -134,7 +134,7 @@ if (Test-Path (Join-Path $McpDir "package.json")) {
     Write-Host "Installing MCP server dependencies..."
     Push-Location $McpDir
     try {
-        & npm install --silent 2>$null
+        & npm ci --silent --ignore-scripts 2>$null
         Write-Host "[OK] MCP dependencies installed"
     } catch {
         Write-Host "[WARN] Could not install MCP dependencies. Run 'npm install' in mcp/ manually."

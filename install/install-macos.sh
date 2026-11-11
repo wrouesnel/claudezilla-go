@@ -63,7 +63,7 @@ MCP_DIR="$PROJECT_DIR/mcp"
 if [ -f "$MCP_DIR/package.json" ]; then
     command -v npm >/dev/null 2>&1 || { echo "Error: npm not found. Please install Node.js and npm first."; exit 1; }
     echo "Installing MCP dependencies..."
-    cd "$MCP_DIR" && npm install --quiet --ignore-scripts
+    cd "$MCP_DIR" && npm ci --quiet --ignore-scripts --no-fund
     echo "MCP dependencies installed."
 fi
 
@@ -72,15 +72,15 @@ mkdir -p "$NATIVE_HOSTS_DIR"
 echo "Created native hosts directory: $NATIVE_HOSTS_DIR"
 
 # Create native manifest with correct path
-MANIFEST_PATH="$NATIVE_HOSTS_DIR/claudezilla.json"
+MANIFEST_PATH="$NATIVE_HOSTS_DIR/claudezilla_hardened.json"
 
 cat > "$MANIFEST_PATH" << EOF
 {
-  "name": "claudezilla",
+  "name": "claudezilla_hardened",
   "description": "Claude Code Firefox browser automation bridge",
   "path": "$WRAPPER_PATH",
   "type": "stdio",
-  "allowed_extensions": ["claudezilla@boot.industries"]
+  "allowed_extensions": ["claudezilla-hardened@wrouesnel.github.io"]
 }
 EOF
 

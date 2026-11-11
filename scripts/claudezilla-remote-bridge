@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Let Claude Code on this host (the agent host) drive Claudezilla in Firefox on
+# another computer (the browser host).
+#
+#   browser host: Firefox + extension + native host
+#     └─ $XDG_RUNTIME_DIR/claudezilla.sock, claudezilla-auth.token
+#           │  forward   (Unix socket here → socket on the browser host)
+#           │  token     (token file copied here, refreshed when it changes)
+#     ┌─────┘
+#   agent host: $CLAUDEZILLA_IPC_DIR/{claudezilla.sock,claudezilla-auth.token} (0700)
+#     └─ mcp/server.js, run by Claude Code as MCP server "claudezilla-desktop"
+#
+# Nothing is reachable unless the forward is running, so stopping it (or
+# refusing it on the browser host) takes control back at once. The token is
+# regenerated each time Firefox starts the native host, and the MCP server
+# re-reads it on every call.
+#
+# The default transport is OpenSSH (socket forwarding needs OpenSSH 6.7+ on
+# both ends). To use something else, define bridge_forward and/or
+# bridge_token in the config file; they receive the variables below.
+#
+# Config: ${XDG_CONFIG_HOME:-~/.config}/claudezilla/remote.env (sourced, bash)
+#   CLAUDEZILLA_REMOTE_HOST     ssh destination of the browser host (required for ssh)
+#   CLAUDEZILLA_REMOTE_SOCKET   socket path there   (default /run/user/<uid>/claudezilla.sock)
+#   CLAUDEZILLA_REMOTE_TOKEN    token path there    (default: next to the socket)
+#   CLAUDEZILLA_IPC_DIR         local directory     (default $XDG_RUNTIME_DIR/claudezilla-remote)
+#
+# Usage:
+#   claudezilla-remote-bridge forward    # long-running: socket forward (+ token refresh)
+#   claudezilla-remote-bridge token      # copy the current token once
+#   claudezilla-remote-bridge mcp-add    # register "claudezilla-desktop" with Claude Code
+#   claudezilla-remote-bridge status
+set -euo pipefail
+
+CONFIG="${CLAUDEZILLA_BRIDGE_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/claudezilla/remote.env}"
+# shellcheck disable=SC1090
+[[ -f "$CONFIG" ]] && . "$CONFIG"
+
+REMOTE_HOST="${CLAUDEZILLA_REMOTE_HOST:-}"
+REMOTE_SOCKET="${CLAUDEZILLA_REMOTE_SOCKET:-/run/user/$(id -u)/claudezilla.sock}"
+REMOTE_TOKEN="${CLAUDEZILLA_REMOTE_TOKEN:-$(dirname "$REMOTE_SOCKET")/claudezilla-auth.token}"
+IPC_DIR="${CLAUDEZILLA_IPC_DIR:-${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/claudezilla-remote}"
+SOCK="$IPC_DIR/claudezilla.sock"
+TOKEN="$IPC_DIR/claudezilla-auth.token"
+REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+TOKEN_POLL_S="${CLAUDEZILLA_TOKEN_POLL_S:-15}"
+
+install -d -m 0700 "$IPC_DIR"
+
+need_host() { [[ -n "$REMOTE_HOST" ]] || { echo "Set CLAUDEZILLA_REMOTE_HOST in $CONFIG (or define bridge_forward/bridge_token there)" >&2; exit 1; }; }
+
+# Write stdin to the token file atomically, 0600, only if it changed.
+store_token() {
+  local tmp; tmp="$(mktemp "$IPC_DIR/.token.XXXXXX")"
+  cat > "$tmp"
+  if [[ ! -s "$tmp" ]]; then rm -f "$tmp"; return 1; fi
+  if [[ -f "$TOKEN" ]] && cmp -s "$tmp" "$TOKEN"; then rm -f "$tmp"; return 0; fi
+  chmod 0600 "$tmp" && mv -f "$tmp" "$TOKEN"
+}
+
+if ! declare -F bridge_token >/dev/null; then
+  bridge_token() { need_host; ssh -o BatchMode=yes "$REMOTE_HOST" cat "$REMOTE_TOKEN" | store_token; }
+  DEFAULT_TOKEN=1
+fi
+if ! declare -F bridge_forward >/dev/null; then
+  bridge_forward() {
+    need_host
+    # Refresh the token while the forward runs (it changes when Firefox restarts).
+    if [[ -n "${DEFAULT_TOKEN:-}" ]]; then
+      ( while sleep "$TOKEN_POLL_S"; do bridge_token 2>/dev/null || true; done ) &
+      trap 'kill $! 2>/dev/null' EXIT
+      bridge_token || echo "warning: could not fetch the token yet" >&2
+    fi
+    ssh -N -o BatchMode=yes -o ExitOnForwardFailure=yes -o StreamLocalBindUnlink=yes \
+      -o ServerAliveInterval=30 -L "$SOCK:$REMOTE_SOCKET" "$REMOTE_HOST"
+  }
+fi
+
+case "${1:-}" in
+  forward)
+    # Clear a stale socket we own; transports won't bind over it.
+    if [[ -S "$SOCK" && -O "$SOCK" ]]; then rm -f "$SOCK"; fi
+    bridge_forward
+    ;;
+  token)
+    bridge_token
+    ;;
+  mcp-add)
+    claude mcp remove --scope user claudezilla-desktop >/dev/null 2>&1 || true
+    exec claude mcp add --scope user claudezilla-desktop \
+      -e "CLAUDEZILLA_IPC_DIR=$IPC_DIR" -e CLAUDEZILLA_SCREENSHOT_FILES=0 \
+      -- node "$REPO/mcp/server.js"
+    ;;
+  status)
+    printf 'browser host: %s (%s)\nipc dir:      %s\nconfig:       %s\n' "${REMOTE_HOST:-custom transport}" "$REMOTE_SOCKET" "$IPC_DIR" "$CONFIG"
+    [[ -S "$SOCK" ]] && echo "socket:       forwarded" || echo "socket:       MISSING (run: $0 forward)"
+    [[ -s "$TOKEN" ]] && echo "token:        present ($(stat -c '%a, updated %y' "$TOKEN"))" || echo "token:        MISSING"
+    ;;
+  *)
+    sed -n '2,32p' "$0" | sed 's/^# \{0,1\}//'
+    exit 2
+    ;;
+esac

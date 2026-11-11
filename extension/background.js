@@ -16,12 +16,67 @@
  * - Element inspection
  */
 
-const NATIVE_HOST = 'claudezilla';
+const NATIVE_HOST = 'claudezilla_hardened';
 
 // Verbose per-message logging. Off in shipped builds so command payloads
 // (which include typed text) don't end up in the console by default.
 // Flip to true locally when debugging the native messaging bridge.
 const DEBUG_LOG_HOST_MESSAGES = false;
+
+// ---------------------------------------------------------------------------
+// Managed policy (agent-host mode)
+//
+// An administrator can preset settings through Firefox managed storage, e.g.
+// ~/.mozilla/managed-storage/claudezilla-hardened@wrouesnel.github.io.json:
+//   { "name": "claudezilla-hardened@wrouesnel.github.io", "type": "storage",
+//     "data": { "allowEvaluate": true, "privateMode": false } }
+// Managed values win over the popup: they are copied into storage.local (where
+// the content scripts read them) and re-applied whenever something changes
+// them. Used for the dedicated headless browser on an agent host, where the
+// agent is meant to have full control. Without that file nothing changes.
+// ---------------------------------------------------------------------------
+const MANAGED_SETTING_KEYS = ['allowEvaluate', 'privateMode'];
+let managedPolicy = {};
+
+async function loadManagedPolicy() {
+  try {
+    if (!browser.storage.managed) return {};
+    const data = await browser.storage.managed.get(null);
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    return {}; // No managed-storage manifest: the normal, unmanaged case
+  }
+}
+
+async function enforceManagedSettings() {
+  const forced = {};
+  for (const key of MANAGED_SETTING_KEYS) {
+    if (typeof managedPolicy[key] === 'boolean') forced[key] = managedPolicy[key];
+  }
+  if (Object.keys(forced).length === 0) return;
+  const stored = await browser.storage.local.get('claudezilla');
+  const current = stored.claudezilla || {};
+  if (Object.entries(forced).every(([k, v]) => current[k] === v)) return;
+  await browser.storage.local.set({ claudezilla: { ...current, ...forced } });
+}
+
+const managedPolicyReady = (async () => {
+  managedPolicy = await loadManagedPolicy();
+  if (Object.keys(managedPolicy).length > 0) {
+    console.log('[claudezilla] Managed policy active:', Object.keys(managedPolicy).join(', '));
+  }
+  try { await enforceManagedSettings(); } catch {}
+})();
+
+if (browser.storage.onChanged) {
+  browser.storage.onChanged.addListener((changes, area) => {
+    if (area === 'managed') {
+      loadManagedPolicy().then(p => { managedPolicy = p; return enforceManagedSettings(); }).catch(() => {});
+    } else if (area === 'local' && changes.claudezilla) {
+      enforceManagedSettings().catch(() => {});
+    }
+  });
+}
 
 let port = null;
 const pendingRequests = new Map();
@@ -236,12 +291,16 @@ async function bringToFrontInDedicatedWindow(tabId) {
 }
 
 async function resolveTargetTab(targetTab, windowId, agentId, operation) {
+  // Hardened: every tab-targeting command must carry the caller's agent ID
+  // (the MCP server always injects its own), and may only touch pool tabs it
+  // owns or tabs the user explicitly attached.
+  if (!agentId) throw new Error(`OWNERSHIP: agentId is required to ${operation} a tab`);
   const normalizedTabId = Number(targetTab);
   // A managed-pool tab always retains managed ownership, even if stale local
   // storage also claims it was attached before this background started.
   if (targetTab && claudezillaWindow?.tabs.some((entry) => entry.tabId === normalizedTabId)) {
     await getSession(windowId);
-    if (agentId) verifyTabOwnership(normalizedTabId, agentId, operation);
+    verifyTabOwnership(normalizedTabId, agentId, operation);
     await bringToFrontInDedicatedWindow(normalizedTabId);
     return normalizedTabId;
   }
@@ -257,10 +316,10 @@ async function resolveTargetTab(targetTab, windowId, agentId, operation) {
 
   const session = await getSession(windowId);
   const tabId = normalizedTabId || session.tabId;
-  if (targetTab && agentId) verifyTabOwnership(tabId, agentId, operation);
-  if (claudezillaWindow?.tabs.some((entry) => entry.tabId === tabId)) {
-    await bringToFrontInDedicatedWindow(tabId);
-  }
+  // Only pool tabs reach here (attached tabs returned above); verifyTabOwnership
+  // rejects any tab that is not in the Claudezilla pool.
+  verifyTabOwnership(tabId, agentId, operation);
+  await bringToFrontInDedicatedWindow(tabId);
   return tabId;
 }
 
@@ -290,11 +349,17 @@ const networkRequests = [];
 const MAX_NETWORK_ENTRIES = 200;
 
 // SECURITY: Allowed URL schemes for navigation
-// file: allowed since Claude Code runs locally with full filesystem access
-const ALLOWED_URL_SCHEMES = ['http:', 'https:', 'about:', 'file:'];
+// Hardened: no file: — the agent may be on another machine, and file: would
+// expose this computer's filesystem to it.
+const ALLOWED_URL_SCHEMES = ['http:', 'https:', 'about:'];
 
 // SECURITY: Sensitive query parameter patterns to redact
-const SENSITIVE_PARAMS = ['password', 'passwd', 'pwd', 'token', 'api_key', 'apikey', 'secret', 'auth', 'key', 'credential'];
+const SENSITIVE_PARAMS = ['password', 'passwd', 'pwd', 'token', 'api_key', 'apikey', 'secret', 'auth', 'key', 'credential',
+  // Hardened additions: OAuth/SAML/session/signature parameters
+  'code', 'state', 'sig', 'session', 'sid', 'jwt', 'access', 'refresh', 'otp', 'nonce', 'ticket', 'saml', 'assertion'];
+
+// Hardened: response headers never handed to the agent
+const SENSITIVE_HEADER_RE = /^(set-cookie|cookie|authorization|proxy-authorization|www-authenticate|proxy-authenticate)$|token|session|auth|secret|csrf|xsrf|key/i;
 
 /**
  * SECURITY: Redact sensitive query parameters from URLs
@@ -309,6 +374,11 @@ function redactSensitiveUrl(url) {
         parsed.searchParams.set(key, '[REDACTED]');
         redacted = true;
       }
+    }
+    // Hardened: fragments can carry OAuth implicit-flow tokens
+    if (parsed.hash) {
+      parsed.hash = '[REDACTED]';
+      redacted = true;
     }
     return redacted ? parsed.toString() : url;
   } catch (e) {
@@ -338,6 +408,11 @@ function validateUrlScheme(url) {
  * SECURITY: Verify agent owns the target tab before operations
  * Prevents cross-agent tab interference
  */
+/** Hardened: never hand another agent's full ID back to a caller. */
+function shortOwner(id) {
+  return typeof id === 'string' && id.length > 12 ? `${id.slice(0, 12)}…` : String(id);
+}
+
 function verifyTabOwnership(tabId, agentId, operation) {
   const numTabId = Number(tabId); // Normalize to Number (JSON may pass string)
   if (!claudezillaWindow) {
@@ -350,7 +425,7 @@ function verifyTabOwnership(tabId, agentId, operation) {
   // Allow operations on tabs with 'unknown' owner (legacy compatibility)
   // But if both have IDs and they don't match, deny
   if (tabEntry.ownerId !== 'unknown' && agentId && tabEntry.ownerId !== agentId) {
-    throw new Error(`OWNERSHIP: Cannot ${operation} tab ${tabId} (owned by ${tabEntry.ownerId}, you are ${agentId})`);
+    throw new Error(`OWNERSHIP: Cannot ${operation} tab ${tabId} (owned by ${shortOwner(tabEntry.ownerId)})`);
   }
   return tabEntry;
 }
@@ -360,8 +435,15 @@ function verifyTabOwnership(tabId, agentId, operation) {
  */
 // SECURITY: Do NOT capture requestBody - it may contain passwords, tokens, credit cards
 // Only capture metadata (URL, method, type) for debugging purposes
+/** Hardened: only record traffic from tabs the agent manages (pool or user-attached). */
+function isManagedTab(tabId) {
+  if (typeof tabId !== 'number' || tabId < 0) return false;
+  return isAttachedTab(tabId) || !!claudezillaWindow?.tabs.some((entry) => entry.tabId === tabId);
+}
+
 browser.webRequest.onBeforeRequest.addListener(
   (details) => {
+    if (!isManagedTab(details.tabId)) return;
     const entry = {
       requestId: details.requestId,
       // SECURITY: Redact query params that may contain sensitive data
@@ -387,7 +469,7 @@ browser.webRequest.onCompleted.addListener(
     if (entry) {
       entry.status = 'completed';
       entry.statusCode = details.statusCode;
-      entry.responseHeaders = details.responseHeaders;
+      entry.responseHeaders = (details.responseHeaders || []).filter((h) => !SENSITIVE_HEADER_RE.test(h.name || ''));
       entry.duration = details.timeStamp - entry.timestamp;
     }
   },
@@ -605,7 +687,7 @@ function connect() {
     port = browser.runtime.connectNative(NATIVE_HOST);
 
     port.onMessage.addListener((message) => {
-      console.log('[claudezilla] Received from host:', message);
+      if (DEBUG_LOG_HOST_MESSAGES) console.log('[claudezilla] Received from host:', message);
 
       // Check if this is a command from CLI (via host)
       if (message.type === 'command') {
@@ -777,9 +859,38 @@ function handleHostMessage(message) {
  * @param {object} params - Action parameters
  * @returns {Promise<object>} Result from content script
  */
+// A tab that was just created or navigated has no content script until the
+// page reaches document_idle. Wait for it instead of failing the agent's call.
+const CONTENT_SCRIPT_WAIT_MS = 10000;
+const CONTENT_SCRIPT_POLL_MS = 250;
+
+async function sendWhenContentScriptReady(tabId, message) {
+  const deadline = Date.now() + CONTENT_SCRIPT_WAIT_MS;
+  let completeSince = null; // a loaded page that still has no script (JSON, PDF) won't get one
+  for (;;) {
+    try {
+      return await browser.tabs.sendMessage(tabId, message);
+    } catch (err) {
+      if (!err.message?.includes('Receiving end does not exist') || Date.now() >= deadline) throw err;
+      if (!claudezillaWindow?.tabs.some(t => t.tabId === tabId) && !attachedTabs.has(tabId)) throw err;
+      let tab;
+      try { tab = await browser.tabs.get(tabId); } catch { throw err; }
+      // Only pages that can ever run a content script are worth waiting for.
+      if (!/^(https?|file):/.test(tab.url || '') && tab.status !== 'loading') throw err;
+      if (tab.status === 'complete') {
+        completeSince ??= Date.now();
+        if (Date.now() - completeSince > 2000) throw err;
+      } else {
+        completeSince = null;
+      }
+      await new Promise(resolve => setTimeout(resolve, CONTENT_SCRIPT_POLL_MS));
+    }
+  }
+}
+
 async function executeInTab(tabId, action, params) {
   try {
-    return await browser.tabs.sendMessage(tabId, { action, params });
+    return await sendWhenContentScriptReady(tabId, { action, params });
   } catch (err) {
     // Improve cryptic "Receiving end does not exist" error
     if (err.message?.includes('Receiving end does not exist')) {
@@ -897,6 +1008,9 @@ async function handleCliCommand(message) {
 
   console.log('[claudezilla] CLI command:', command);
 
+  // Managed policy must be in force before any command is handled.
+  await managedPolicyReady;
+
   // Adopt a surviving window before any command touches claudezillaWindow
   // (no-op after the first call per background lifetime).
   await restoreWindowState();
@@ -910,17 +1024,6 @@ async function handleCliCommand(message) {
       case 'ping':
         result = { pong: true, timestamp: Date.now() };
         break;
-
-      case 'setPrivateMode': {
-        const { enabled } = params;
-        if (typeof enabled !== 'boolean') throw new Error('enabled (boolean) is required');
-        const current = await browser.storage.local.get('claudezilla');
-        const settings = current.claudezilla || {};
-        settings.privateMode = enabled;
-        await browser.storage.local.set({ claudezilla: settings });
-        result = { privateMode: enabled, message: enabled ? 'Private mode enabled (default). New windows will be incognito.' : 'Private mode disabled. New windows will use regular browsing with persistent cookies.' };
-        break;
-      }
 
       case 'version':
         result = {
@@ -981,10 +1084,10 @@ async function handleCliCommand(message) {
                 url: tab.url,
                 title: tab.title,
                 active: tab.active,
-                ownerId: entry.ownerId
+                ownerId: shortOwner(entry.ownerId)
               };
             } catch (e) {
-              return { tabId: entry.tabId, ownerId: entry.ownerId, error: 'Tab not found' };
+              return { tabId: entry.tabId, ownerId: shortOwner(entry.ownerId), error: 'Tab not found' };
             }
           })
         );
@@ -1162,7 +1265,9 @@ async function handleCliCommand(message) {
           // Toggle via the popup's "Reuse current window" setting (Window
           // section), backed by storage.local { adoptCurrentWindow: false }.
           isNewWindow = true;
-          const usePrivate = typeof requestedPrivate === 'boolean' ? requestedPrivate : await isPrivateModeRequired();
+          // Hardened: the user's privateMode setting is a floor; an agent may ask for
+          // a private window but cannot opt out of one.
+          const usePrivate = requestedPrivate === true || await isPrivateModeRequired();
           let win;
           let adoptedWindow = false;
 
@@ -1197,18 +1302,10 @@ async function handleCliCommand(message) {
                 url: url || 'about:blank'
               });
             } catch (e) {
-              // Auto-fallback: if private was requested but permission denied, retry non-private
-              if (usePrivate && (e.message?.includes('incognito') || e.message?.includes('private') || e.message?.includes('permission'))) {
-                privateFallback = true;
-                console.log('[claudezilla] Private window failed, falling back to non-private:', e.message);
-                win = await browser.windows.create({
-                  incognito: false,
-                  focused: false,
-                  url: url || 'about:blank'
-                });
-              } else {
-                throw e;
+              if (usePrivate) {
+                throw new Error(`Could not open a private window (${e.message}). Allow Claudezilla in private windows in about:addons, or turn off "Private windows" in the Claudezilla popup.`);
               }
+              throw e;
             }
             tabId = win.tabs?.[0]?.id;
           }
@@ -1289,7 +1386,7 @@ async function handleCliCommand(message) {
         if (isAttachedTab(closeTabId)) {
           const att = attachedTabs.get(closeTabId);
           if (att.ownerId !== 'unknown' && att.ownerId !== agentId) {
-            throw new Error(`OWNERSHIP: Attached tab ${closeTabId} was attached by ${att.ownerId}. You (${agentId}) cannot close it.`);
+            throw new Error(`OWNERSHIP: Attached tab ${closeTabId} was attached by ${shortOwner(att.ownerId)}. You cannot close it.`);
           }
           attachedTabs.delete(closeTabId);
           await persistAttachedTabs();
@@ -1312,7 +1409,7 @@ async function handleCliCommand(message) {
         // Note: 'unknown' ownership allows any agent to close (legacy tabs created without agentId)
         // This is intentional for backward compatibility, but new tabs always have agentId
         if (tabEntry.ownerId !== 'unknown' && tabEntry.ownerId !== agentId) {
-          throw new Error(`OWNERSHIP: Tab ${closeTabId} was created by ${tabEntry.ownerId}. You (${agentId}) cannot close another agent's tab.`);
+          throw new Error(`OWNERSHIP: Tab ${closeTabId} was created by ${shortOwner(tabEntry.ownerId)}. You cannot close another agent's tab.`);
         }
 
         // Remove from tracking
@@ -2204,99 +2301,67 @@ async function handleCliCommand(message) {
  * Handle messages from content scripts or popup
  * Firefox requires returning a Promise for async responses
  */
+// SECURITY (hardened build): runtime messages come either from content scripts
+// (sender.tab set, i.e. code running inside web pages' isolated worlds) or from
+// our own extension pages (popup/welcome). Content scripts may only ask to open
+// the popup; extension pages may only query status and stop a loop. All other
+// browser control goes exclusively through the native host.
+const CONTENT_SCRIPT_ACTIONS = new Set(['openPopup']);
+const EXTENSION_PAGE_ACTIONS = new Set(['ping', 'version', 'getConnectionStatus', 'getLoopState', 'stopLoop']);
+
+function isOwnExtensionPage(sender) {
+  return !sender.tab
+    && sender.id === browser.runtime.id
+    && typeof sender.url === 'string'
+    && sender.url.startsWith(browser.runtime.getURL(''));
+}
+
 browser.runtime.onMessage.addListener((message, sender) => {
-  const { action, params } = message;
+  const { action } = message || {};
 
-  console.log('[claudezilla] Message from', sender.tab ? `tab ${sender.tab.id}` : 'popup', ':', message);
+  const allowed = sender.tab
+    ? sender.id === browser.runtime.id && CONTENT_SCRIPT_ACTIONS.has(action)
+    : isOwnExtensionPage(sender) && EXTENSION_PAGE_ACTIONS.has(action);
+  if (!allowed) {
+    console.warn('[claudezilla] Rejected runtime message', action, 'from', sender.tab ? `tab ${sender.tab.id}` : sender.url);
+    return Promise.resolve({ success: false, error: `Action not permitted: ${action}` });
+  }
 
-  // Return a Promise for Firefox
+  if (DEBUG_LOG_HOST_MESSAGES) {
+    console.log('[claudezilla] Message from', sender.tab ? `tab ${sender.tab.id}` : 'extension page', ':', message);
+  }
+
   return (async () => {
     try {
       let result;
-
       switch (action) {
         case 'ping':
           result = await sendToHost('ping');
           break;
-
         case 'version':
           result = await sendToHost('version');
           break;
-
         case 'getConnectionStatus':
           result = getConnectionStatus();
           break;
-
-        // Loop/concentration commands - forward to native host
         case 'getLoopState':
           result = await sendToHost('getLoopState');
           break;
-
         case 'stopLoop':
           result = await sendToHost('stopLoop');
           break;
-
-        case 'startLoop':
-          result = await sendToHost('startLoop', params);
-          break;
-
         case 'openPopup':
-          // Open extension popup when watermark is clicked
-          // Firefox 57+ supports browserAction.openPopup()
+          // Watermark click in a page. Only works during a user gesture.
           try {
             await browser.browserAction.openPopup();
             result = { opened: true };
           } catch (e) {
-            // Fallback: just acknowledge - popup can only be opened by user click on toolbar icon
-            console.log('[claudezilla] openPopup not available:', e.message);
             result = { opened: false, reason: 'openPopup not supported in this context' };
           }
           break;
-
-        case 'navigate': {
-          const { url } = params;
-          const tab = await browser.tabs.create({ url });
-          result = { tabId: tab.id, url };
-          break;
-        }
-
-        case 'getActiveTab': {
-          const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-          result = tab ? { tabId: tab.id, url: tab.url, title: tab.title } : null;
-          break;
-        }
-
-        case 'getContent': {
-          const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-          if (!tab) throw new Error('No active tab');
-          result = await executeInTab(tab.id, 'getContent', params);
-          break;
-        }
-
-        case 'click': {
-          const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-          if (!tab) throw new Error('No active tab');
-          result = await executeInTab(tab.id, 'click', params);
-          break;
-        }
-
-        case 'type': {
-          const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-          if (!tab) throw new Error('No active tab');
-          result = await executeInTab(tab.id, 'type', params);
-          break;
-        }
-
-        case 'screenshot': {
-          const dataUrl = await browser.tabs.captureVisibleTab(null, { format: 'png' });
-          result = { dataUrl };
-          break;
-        }
-
         default:
           throw new Error(`Unknown action: ${action}`);
       }
-
       return { success: true, result };
     } catch (error) {
       console.error('[claudezilla] Action error:', error);

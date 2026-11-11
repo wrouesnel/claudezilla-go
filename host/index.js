@@ -47,7 +47,8 @@ const AUTH_TOKEN_FILE = getAuthTokenPath();
 const MAX_BUFFER_SIZE = 10 * 1024 * 1024;
 
 // SECURITY: Loop configuration limits
-const MAX_ITERATIONS_LIMIT = 10000;  // Maximum allowed maxIterations value
+const MAX_ITERATIONS_LIMIT = 50;     // Hardened: hard cap (upstream 10000)
+const DEFAULT_MAX_ITERATIONS = 10;    // Hardened: no unlimited loops
 const MAX_LOOP_DURATION_MS = 60 * 60 * 1000;  // 1 hour wall-clock timeout
 const MAX_COMPLETION_PROMISE_LENGTH = 1000;  // Max length for completionPromise string
 
@@ -99,7 +100,6 @@ const ALLOWED_COMMANDS = new Set([
   'getSlotRequests',
   'cleanupOrphanedTabs',
   // Settings
-  'setPrivateMode',
   // Session cleanup
   'goodbye',
   // Clean quit (opt-in via CLAUDEZILLA_ALLOW_QUIT, see handleCliCommand)
@@ -219,7 +219,7 @@ function handleLoopCommand(command, params, callback) {
 
   switch (command) {
     case 'startLoop': {
-      const { prompt, maxIterations = 0, completionPromise = null } = params;
+      const { prompt, maxIterations = DEFAULT_MAX_ITERATIONS, completionPromise = null } = params;
 
       // SECURITY: Prevent overlapping loops within the same session
       if (state.active) {
@@ -234,9 +234,9 @@ function handleLoopCommand(command, params, callback) {
       }
 
       // SECURITY: Validate maxIterations bounds
-      const maxIter = Number(maxIterations) || 0;
-      if (maxIter < 0 || maxIter > MAX_ITERATIONS_LIMIT) {
-        callback({ success: false, error: `maxIterations must be 0-${MAX_ITERATIONS_LIMIT}` });
+      const maxIter = Number(maxIterations) || DEFAULT_MAX_ITERATIONS;
+      if (!Number.isInteger(maxIter) || maxIter < 1 || maxIter > MAX_ITERATIONS_LIMIT) {
+        callback({ success: false, error: `maxIterations must be 1-${MAX_ITERATIONS_LIMIT}` });
         return;
       }
 

@@ -13,6 +13,7 @@ const showFocusglowCheckbox = document.getElementById('showFocusglow');
 const compressImagesCheckbox = document.getElementById('compressImages');
 const allowEvaluateCheckbox = document.getElementById('allowEvaluate');
 const adoptCurrentWindowCheckbox = document.getElementById('adoptCurrentWindow');
+const privateModeCheckbox = document.getElementById('privateMode');
 
 // Loop elements
 const loopSection = document.getElementById('loopSection');
@@ -50,9 +51,29 @@ async function loadSettings() {
     showWatermarkCheckbox.checked = settings.showWatermark;
     showFocusglowCheckbox.checked = settings.showFocusglow;
     compressImagesCheckbox.checked = settings.compressImages;
+    privateModeCheckbox.checked = settings.privateMode !== false;
     allowEvaluateCheckbox.checked = settings.allowEvaluate;
   } catch (e) {
     console.log('[claudezilla] Could not load settings:', e.message);
+  }
+  await applyManagedLocks();
+}
+
+/**
+ * Settings set by managed policy (agent-host mode) are shown but locked.
+ */
+async function applyManagedLocks() {
+  let managed = {};
+  try {
+    if (browser.storage.managed) managed = (await browser.storage.managed.get(null)) || {};
+  } catch {
+    return; // No managed-storage manifest
+  }
+  for (const [key, checkbox] of [['privateMode', privateModeCheckbox], ['allowEvaluate', allowEvaluateCheckbox]]) {
+    if (typeof managed[key] !== 'boolean') continue;
+    checkbox.checked = managed[key];
+    checkbox.disabled = true;
+    checkbox.title = 'Set by managed policy';
   }
 }
 
@@ -65,10 +86,10 @@ async function saveSettings() {
       showWatermark: showWatermarkCheckbox.checked,
       showFocusglow: showFocusglowCheckbox.checked,
       compressImages: compressImagesCheckbox.checked,
+      privateMode: privateModeCheckbox.checked,
       allowEvaluate: allowEvaluateCheckbox.checked,
     };
-    // Merge into the stored object: other keys (e.g. privateMode, set via
-    // firefox_set_private_mode) are not controlled by the popup.
+    // Merge into the stored object so keys the popup doesn't own survive.
     const stored = await browser.storage.local.get('claudezilla');
     await browser.storage.local.set({ claudezilla: { ...(stored.claudezilla || {}), ...settings } });
   } catch (e) {
@@ -227,6 +248,7 @@ async function checkFirstRun() {
     // Show welcome page if not seen AND permission not enabled
     if (!stored.welcomePageSeen && !hasPermission) {
       browser.tabs.create({ url: browser.runtime.getURL('welcome.html') });
+      await browser.storage.local.set({ welcomePageSeen: true });
     }
   } catch (e) {
     console.log('[claudezilla] Could not check first run:', e);
@@ -285,23 +307,6 @@ async function stopLoop() {
 
 // Initialize
 async function init() {
-  // IMPORTANT: Attach support link handler FIRST, before any async operations
-  // that might fail and prevent this from running
-  const supportLink = document.getElementById('supportLink');
-  if (supportLink) {
-    supportLink.addEventListener('click', async (e) => {
-      e.preventDefault();
-      try {
-        await browser.tabs.create({ url: 'https://claudezilla.com/support' });
-      } catch (err) {
-        console.error('[claudezilla] Failed to open support page:', err);
-        // Fallback: open in current context
-        window.open('https://claudezilla.com/support', '_blank');
-      }
-      window.close();
-    });
-  }
-
   // Check for first run
   await checkFirstRun();
 
@@ -320,6 +325,7 @@ async function init() {
   compressImagesCheckbox.addEventListener('change', saveSettings);
   allowEvaluateCheckbox.addEventListener('change', saveSettings);
   adoptCurrentWindowCheckbox.addEventListener('change', saveWindowSettings);
+  privateModeCheckbox.addEventListener('change', saveSettings);
 
   // Add auto-loop setting change listeners (v0.5.0)
   enableAutoDetectCheckbox.addEventListener('change', saveAutoLoopSettings);

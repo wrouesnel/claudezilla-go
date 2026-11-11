@@ -1,0 +1,15 @@
+# Agent-host side of the remote Claudezilla bridge (user unit).
+# Configure ~/.config/claudezilla/remote.env first (see scripts/claudezilla-remote-bridge), then:
+#   cp install/systemd/claudezilla-bridge.service ~/.config/systemd/user/
+#   systemctl --user enable --now claudezilla-bridge
+# Stopping the unit takes remote control away immediately.
+[Unit]
+Description=Claudezilla remote bridge (socket forward to the browser host)
+
+[Service]
+ExecStart=%h/src/claudezilla/scripts/claudezilla-remote-bridge forward
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

@@ -46,3 +46,6 @@ marketing/video/
 # Setup guides with deployment details
 STRIPE_SETUP.md
 IMPLEMENTATION_SUMMARY.md
+
+# Built XPIs
+dist/

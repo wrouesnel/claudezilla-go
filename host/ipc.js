@@ -175,7 +175,9 @@ export function getSafeTempDir() {
     }
   }
 
-  return tmpdir();
+  // Hardened: never fall back to a shared temp dir, where another local user
+  // could pre-create or symlink the socket, token or log.
+  throw new Error('No private IPC directory: set XDG_RUNTIME_DIR or CLAUDEZILLA_IPC_DIR, or make ~/.claudezilla writable');
 }
 
 /**

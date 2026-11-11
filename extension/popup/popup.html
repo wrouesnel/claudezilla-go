@@ -234,7 +234,7 @@
 <body>
   <h1>
     Claudezilla
-    <span class="version">v0.7.7</span>
+    <span class="version">v0.7.7.2 (hardened)</span>
   </h1>
 
   <div class="status">
@@ -280,6 +280,14 @@
         </label>
       </div>
       <div class="setting-hint">Reduce file size (default: on)</div>
+      <div class="setting-row">
+        <label>
+          <input type="checkbox" id="privateMode" checked>
+          <span>Private windows</span>
+          <span class="setting-icon">🕶</span>
+        </label>
+      </div>
+      <div class="setting-hint">Agent tabs open in private windows with none of your logins (default: on). Only you can change this.</div>
       <div class="setting-row">
         <label>
           <input type="checkbox" id="adoptCurrentWindow" checked>
@@ -355,11 +363,6 @@
   <div id="info" class="info" style="display: none;"></div>
 
   <div id="error" class="error"></div>
-
-  <!-- Support footer -->
-  <div class="support-footer">
-    <a href="#" id="supportLink" class="support-link">☕ Support this project</a>
-  </div>
 
   <script src="popup.js"></script>
 </body>

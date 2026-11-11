@@ -1,5 +1,10 @@
 # Claudezilla
 
+> **This is a hardened fork** aimed at selective, seamless remote control: Claude Code agents on
+> a separate machine drive your Firefox only while you let them, or get a headless browser of their
+> own. See [HARDENING.md](HARDENING.md) for what changed and how to install it. The rest of this
+> README describes upstream.
+
 **Browser automation for Claude Code that runs on Firefox** — for systems where Chrome is unavailable, unwelcome, or policy-prohibited.
 
 [![Version](https://img.shields.io/badge/version-0.7.7-blue.svg)](./CHANGELOG.md)

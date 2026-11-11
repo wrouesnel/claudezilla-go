@@ -1,17 +1,15 @@
-# Dependencies
-node_modules/
-
-# Build artifacts
+# Build output
+bin/
+dist/
 *.xpi
 *.zip
-web-ext-artifacts/
-artifacts/
 
-# OS files
+# Dependencies (tests use only Node built-ins)
+node_modules/
+
+# OS and editor files
 .DS_Store
 Thumbs.db
-
-# Editor files
 .idea/
 .vscode/
 *.swp
@@ -19,33 +17,7 @@ Thumbs.db
 
 # Logs
 *.log
-npm-debug.log*
 claudezilla-debug.log
 
 # Claude Code local settings
 .claude/
-
-# Generated files
-install/claudezilla.json
-host/host.bat
-host/run.sh
-
-# Runtime files
-/tmp/claudezilla.sock
-
-# Lock files: mcp/package-lock.json is committed and installed with `npm ci`
-host/package-lock.json
-
-# Private documentation (PREFIX docs for local use only)
-docs/clz/
-docs/tmp/
-
-# Large video source assets (use R2/CDN for delivery)
-marketing/video/
-
-# Setup guides with deployment details
-STRIPE_SETUP.md
-IMPLEMENTATION_SUMMARY.md
-
-# Built XPIs
-dist/

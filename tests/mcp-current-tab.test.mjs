@@ -6,7 +6,8 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const SERVER_JS = new URL('../mcp/server.js', import.meta.url).pathname;
+// The Go MCP server (go build -o bin/ ./cmd/...), or CLAUDEZILLA_MCP_BIN.
+const SERVER_BIN = process.env.CLAUDEZILLA_MCP_BIN ?? new URL('../bin/claudezilla-mcp', import.meta.url).pathname;
 
 // Fake host: records every command's params and answers from `replies`
 // (command name -> function(params) returning the response body).
@@ -33,7 +34,7 @@ function startFakeHost(replies) {
 
 // Minimal sequential MCP client over stdio.
 function startClient(env) {
-  const child = spawn(process.execPath, [SERVER_JS], {
+  const child = spawn(SERVER_BIN, [], {
     env: { ...process.env, ...env },
     stdio: ['pipe', 'pipe', 'ignore'],
   });

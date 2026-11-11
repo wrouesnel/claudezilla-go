@@ -16,7 +16,7 @@
  * - Element inspection
  */
 
-const NATIVE_HOST = 'claudezilla_hardened';
+const NATIVE_HOST = 'claudezilla_go';
 
 // Verbose per-message logging. Off in shipped builds so command payloads
 // (which include typed text) don't end up in the console by default.
@@ -27,8 +27,8 @@ const DEBUG_LOG_HOST_MESSAGES = false;
 // Managed policy (agent-host mode)
 //
 // An administrator can preset settings through Firefox managed storage, e.g.
-// ~/.mozilla/managed-storage/claudezilla-hardened@wrouesnel.github.io.json:
-//   { "name": "claudezilla-hardened@wrouesnel.github.io", "type": "storage",
+// ~/.mozilla/managed-storage/claudezilla-go@wrouesnel.github.io.json:
+//   { "name": "claudezilla-go@wrouesnel.github.io", "type": "storage",
 //     "data": { "allowEvaluate": true, "privateMode": false } }
 // Managed values win over the popup: they are copied into storage.local (where
 // the content scripts read them) and re-applied whenever something changes

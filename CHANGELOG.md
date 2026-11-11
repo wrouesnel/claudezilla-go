@@ -1,7 +1,22 @@
-# CLZ002 Changelog
+# Changelog
 
-**Project:** Claudezilla
-**Current Version:** 0.7.7
+**Project:** claudezilla-go (a diverging fork of Claudezilla; entries from v0.7.7 down are upstream's)
+**Current Version:** 0.7.7.3
+
+## v0.7.7.3 (2026-11-12): claudezilla-go
+
+First release of the fork. See README.md ("What's new") and HARDENING.md for details.
+
+- The native host and MCP server are rewritten in Go (`claudezilla-host`, `claudezilla-mcp`), with no
+  third-party modules. The protocol is unchanged, and `tools/list` output is identical.
+- New identity: extension `claudezilla-go@wrouesnel.github.io`, native host `claudezilla_go`.
+- Remote control through a forwarded socket (`scripts/claudezilla-remote-bridge`, OpenSSH by default).
+- Agent-host mode: a headless Firefox ESR under managed policy (`install/install-agent-host.sh`).
+- Hardening across the extension, host and MCP server, after an audit of upstream v0.7.7.
+- Calls made right after opening or navigating a page wait for its content script.
+- `claudezilla-mcp call <command>` replaces `host/cli.js`.
+- Removed: the Node.js host and MCP server, upstream's per-OS installers, website, worker,
+  donation flow and CI.
 
 ## v0.7.7 (2026-11-05)
 

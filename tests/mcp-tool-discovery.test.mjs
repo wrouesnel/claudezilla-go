@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { isWindows } from '../host/ipc.js';
+const isWindows = () => process.platform === 'win32';
 
 function parseResponses(stdout) {
   return stdout.split('\n').filter(Boolean).map(l => {
@@ -16,7 +16,7 @@ function parseResponses(stdout) {
 // request is answered, or after `waitMs` at the latest.
 function runServerRpc(args = [], env = {}, { requests = [], waitMs = 3000 } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn('node', ['mcp/server.js', ...args], {
+    const child = spawn(process.env.CLAUDEZILLA_MCP_BIN ?? 'bin/claudezilla-mcp', args, {
       cwd: new URL('../', import.meta.url).pathname,
       env: { ...process.env, ...env },
       stdio: ['pipe', 'pipe', 'pipe'],

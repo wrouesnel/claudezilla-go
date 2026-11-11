@@ -212,7 +212,7 @@ async function testConnection() {
     const version = await sendMessage('version');
     setInfo({
       'Host Version': version.host,
-      'Node.js': version.node,
+      'Runtime': version.runtime,
       'Platform': version.platform,
     });
   } catch (error) {

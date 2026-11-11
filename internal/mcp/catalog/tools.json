@@ -1,0 +1,1184 @@
+[
+  {
+    "name": "firefox_create_window",
+    "title": "Create Window",
+    "description": "Open a URL in the shared Claudezilla browser. SHARED POOL: One window with MAX 12 TABS shared across all Claude agents. Each call creates a new tab. When limit reached, oldest tab auto-closed. OWNERSHIP: Each tab tracks its creator - only you can close tabs you created. Auto-fallback: if private mode fails (permission not granted), automatically falls back to non-private with a warning. Returns: windowId, tabId, ownerId, tabCount, maxTabs, isPrivate.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "URL to open in new tab (default: about:blank)"
+        },
+        "private": {
+          "type": "boolean",
+          "description": "Request private (incognito) or non-private window. Only applies when creating a NEW window. If existing window mode conflicts, returns MODE_MISMATCH error. Omit to use default."
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Create Window",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": true
+    },
+    "_meta": {
+      "anthropic/alwaysLoad": true
+    }
+  },
+  {
+    "name": "firefox_navigate",
+    "title": "Navigate",
+    "description": "Navigate an existing tab to a URL. tabId defaults to your current tab; ownership is enforced. Never creates a window: call firefox_create_window first.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The URL to navigate to"
+        },
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      },
+      "required": [
+        "url"
+      ]
+    },
+    "annotations": {
+      "title": "Navigate",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": true
+    },
+    "_meta": {
+      "anthropic/alwaysLoad": true
+    }
+  },
+  {
+    "name": "firefox_get_content",
+    "title": "Get Content",
+    "description": "Read the visible text of the page or of one element (ref or selector), returned as plain text after a one-line JSON header. Default 20,000 chars; when truncated, the header carries nextOffset for the next page. HTML only with includeHtml=true.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Element ref from a snapshot or firefox_find, e.g. \"ref_a1b2_12\" (preferred over selector)"
+        },
+        "selector": {
+          "type": "string",
+          "description": "Optional CSS selector to get content from a specific element"
+        },
+        "includeHtml": {
+          "type": "boolean",
+          "description": "Include raw HTML in response (default: false). Warning: can be very large."
+        },
+        "offset": {
+          "type": "number",
+          "description": "Character offset to start from (use nextOffset from a truncated result)"
+        },
+        "maxLength": {
+          "type": "number",
+          "description": "Max characters to return (default: 20000)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Get Content",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_click",
+    "title": "Click",
+    "description": "Click an element by CSS selector. Dispatches the full pointer/mouse sequence (pointerdown, mousedown, pointerup, mouseup, click) at the element centre. Events are synthetic (isTrusted=false): pages that check isTrusted will ignore them. Result reports obscuredBy when another element covers the click point. Works on background tabs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Element ref from a snapshot or firefox_find, e.g. \"ref_a1b2_12\" (preferred over selector)"
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector for the element to click (e.g., \"button.submit\", \"#login-btn\")"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Click",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "anthropic/alwaysLoad": true
+    }
+  },
+  {
+    "name": "firefox_type",
+    "title": "Type",
+    "description": "Type text into an input field. Works on background tabs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Element ref from a snapshot or firefox_find, e.g. \"ref_a1b2_12\" (preferred over selector)"
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector for the input element"
+        },
+        "text": {
+          "type": "string",
+          "description": "Text to type into the input"
+        },
+        "clear": {
+          "type": "boolean",
+          "description": "Whether to clear existing text first (default: true)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      },
+      "required": [
+        "text"
+      ]
+    },
+    "annotations": {
+      "title": "Type",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "anthropic/alwaysLoad": true
+    }
+  },
+  {
+    "name": "firefox_press_key",
+    "title": "Press Key",
+    "description": "Send a keyboard event. Use for Enter, Tab, Escape, arrow keys, or shortcuts (Ctrl+A, etc.). More reliable than clicking for form submission and navigation. Works on background tabs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "key": {
+          "type": "string",
+          "description": "Key to press: Enter, Tab, Escape, Backspace, Delete, ArrowUp/Down/Left/Right, Home, End, PageUp/Down, or single characters (a-z, 0-9)"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Element ref from a snapshot or firefox_find, e.g. \"ref_a1b2_12\" (preferred over selector)"
+        },
+        "selector": {
+          "type": "string",
+          "description": "Optional CSS selector for target element (default: currently focused element)"
+        },
+        "ctrlKey": {
+          "type": "boolean",
+          "description": "Hold Ctrl key (for shortcuts like Ctrl+A)"
+        },
+        "shiftKey": {
+          "type": "boolean",
+          "description": "Hold Shift key"
+        },
+        "altKey": {
+          "type": "boolean",
+          "description": "Hold Alt key"
+        },
+        "metaKey": {
+          "type": "boolean",
+          "description": "Hold Meta/Cmd key (Mac)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      },
+      "required": [
+        "key"
+      ]
+    },
+    "annotations": {
+      "title": "Press Key",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_screenshot",
+    "title": "Screenshot",
+    "description": "Capture the viewport (or a region) as an image sized for vision models: long edge capped at maxEdge (default 1568 px). A text block before the image reports width, height and cssScale (CSS px = image px / cssScale). Waits for network idle and render settlement unless skipReadiness. Prefer firefox_get_accessibility_snapshot for reading; use screenshots for layout and visuals.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "maxEdge": {
+          "type": "number",
+          "description": "Longest image side in px (default 1568; 800 for a quick layout check; up to 2576 for small text on high-resolution models)"
+        },
+        "region": {
+          "type": "object",
+          "description": "Zoom: capture only this viewport rectangle in CSS px",
+          "properties": {
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ]
+        },
+        "quality": {
+          "type": "number",
+          "description": "JPEG quality 1-100 (default: 60)"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "jpeg",
+            "png"
+          ],
+          "description": "Image format (default: jpeg). JPEG is much smaller."
+        },
+        "maxWait": {
+          "type": "number",
+          "description": "Maximum ms to wait for page ready (default: 10000). Captures after this even if not idle."
+        },
+        "waitForImages": {
+          "type": "boolean",
+          "description": "Wait for images/fonts to load (default: true). Set false for faster capture of text-heavy pages."
+        },
+        "skipReadiness": {
+          "type": "boolean",
+          "description": "Skip all readiness detection (instant capture). Use when page is known to be ready."
+        },
+        "annotate": {
+          "type": "boolean",
+          "description": "Overlay numbered badges on visible interactive elements (buttons, links, inputs) before capture. Returns labels map {index: {ref, role, text}}; pass a ref to click/type. Useful for vision models to identify elements."
+        },
+        "savePath": {
+          "type": "string",
+          "description": "Optional file path to also save the image (e.g. /tmp/shot.jpg). Must be inside the temp or current working directory and end in .jpg/.jpeg (JPEG) or .png (PNG). The path is returned in the text block."
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Screenshot",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "anthropic/alwaysLoad": true
+    }
+  },
+  {
+    "name": "firefox_get_tabs",
+    "title": "Get Tabs",
+    "description": "List all Claudezilla tabs with URLs, titles, tabIds, and ownerId. Shows which agent owns each tab. Use to see shared 12-tab pool status.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Get Tabs",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_list_all_tabs",
+    "title": "List All Tabs",
+    "description": "List every open Firefox tab across all windows, including tabs outside the managed Claudezilla pool. Returns tabId, windowId, URL, title, active/pinned/private flags, and pool/attached markers. Use firefox_attach_tab with a returned tabId to drive an existing user tab in place.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "List All Tabs",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_attach_tab",
+    "title": "Attach Tab",
+    "description": "Attach an already-open user tab for in-place automation. This does not create, move, navigate, activate, or close the tab. After attaching, pass its tabId to the normal content, interaction, devtools, navigation, or screenshot tools. Use firefox_list_all_tabs to find tab IDs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Existing tab ID returned by firefox_list_all_tabs"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      },
+      "required": [
+        "tabId"
+      ]
+    },
+    "annotations": {
+      "title": "Attach Tab",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_detach_tab",
+    "title": "Detach Tab",
+    "description": "Release an attached user tab without closing, moving, navigating, or otherwise changing it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Attached tab ID to release"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      },
+      "required": [
+        "tabId"
+      ]
+    },
+    "annotations": {
+      "title": "Detach Tab",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_close_tab",
+    "title": "Close Tab",
+    "description": "Close a specific tab by ID. OWNERSHIP ENFORCED: You can only close tabs you created. Other agents cannot close your tabs. Use firefox_get_tabs to see ownership.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID to close (required). Must be a tab you own."
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      },
+      "required": [
+        "tabId"
+      ]
+    },
+    "annotations": {
+      "title": "Close Tab",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_close_window",
+    "title": "Close Window",
+    "description": "Close the entire Claudezilla window and all tabs. WARNING: This affects all Claude agents sharing the window. Use firefox_close_tab to close individual tabs instead.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Close Window",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_request_tab_space",
+    "title": "Request Tab Space",
+    "description": "Request tab space when blocked by POOL_FULL. Queues your request. When another agent closes a tab or grants space, you receive a 30-second slot reservation. Call firefox_get_slot_requests to check if you have a reservation, then createWindow to claim it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Request Tab Space",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_grant_tab_space",
+    "title": "Grant Tab Space",
+    "description": "Voluntarily release your oldest tab to help a waiting agent. Creates a 30-second reservation for the waiting agent so they can claim the freed slot. Only works if you have >2 tabs and there are pending slot requests.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Grant Tab Space",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_get_slot_requests",
+    "title": "Get Slot Requests",
+    "description": "Check pending requests, active reservations, and your tab count. Shows if you have a reserved slot (youHaveReservation) and how long until it expires. If you have a reservation, call createWindow immediately to claim it.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Get Slot Requests",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_resize_window",
+    "title": "Resize Window",
+    "description": "Resize and/or reposition a browser window.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "windowId": {
+          "type": "number",
+          "description": "Window ID to resize (uses current window if not specified)"
+        },
+        "width": {
+          "type": "number",
+          "description": "New window width in pixels"
+        },
+        "height": {
+          "type": "number",
+          "description": "New window height in pixels"
+        },
+        "left": {
+          "type": "number",
+          "description": "Window X position from left edge of screen"
+        },
+        "top": {
+          "type": "number",
+          "description": "Window Y position from top edge of screen"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Resize Window",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_set_viewport",
+    "title": "Set Viewport",
+    "description": "Set browser viewport to a device preset for responsive testing. Presets: iphone-se, iphone-14, iphone-14-pro-max, pixel-7, galaxy-s23, ipad-mini, ipad-pro-11, ipad-pro-12, laptop, desktop",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "windowId": {
+          "type": "number",
+          "description": "Target window ID (from firefox_create_window). Optional if only one window."
+        },
+        "device": {
+          "type": "string",
+          "description": "Device preset name (e.g., \"iphone-14\", \"ipad-pro-11\", \"pixel-7\")",
+          "enum": [
+            "iphone-se",
+            "iphone-14",
+            "iphone-14-pro-max",
+            "pixel-7",
+            "galaxy-s23",
+            "ipad-mini",
+            "ipad-pro-11",
+            "ipad-pro-12",
+            "laptop",
+            "desktop"
+          ]
+        },
+        "width": {
+          "type": "number",
+          "description": "Custom viewport width (use instead of device preset)"
+        },
+        "height": {
+          "type": "number",
+          "description": "Custom viewport height (use instead of device preset)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Set Viewport",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_get_console",
+    "title": "Get Console",
+    "description": "Get captured console logs from the page. Captures console.log, console.warn, console.error, and uncaught exceptions. Works on background tabs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "level": {
+          "type": "string",
+          "description": "Filter by log level: log, warn, error, info, debug",
+          "enum": [
+            "log",
+            "warn",
+            "error",
+            "info",
+            "debug"
+          ]
+        },
+        "clear": {
+          "type": "boolean",
+          "description": "Clear logs after returning (default: false)"
+        },
+        "limit": {
+          "type": "number",
+          "description": "Maximum logs to return (default: 100)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Get Console",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_get_network",
+    "title": "Get Network",
+    "description": "Get captured network requests. Shows XHR, fetch, script, image, and other resource requests with status codes and timing. Works on background tabs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "type": {
+          "type": "string",
+          "description": "Filter by request type: xmlhttprequest, script, stylesheet, image, font, etc."
+        },
+        "status": {
+          "type": "string",
+          "description": "Filter by status: pending, completed, error",
+          "enum": [
+            "pending",
+            "completed",
+            "error"
+          ]
+        },
+        "clear": {
+          "type": "boolean",
+          "description": "Clear requests after returning (default: false)"
+        },
+        "limit": {
+          "type": "number",
+          "description": "Maximum requests to return (default: 50)"
+        },
+        "includeHeaders": {
+          "type": "boolean",
+          "description": "Include response headers in output (default: false — headers are stripped to reduce payload size)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Get Network",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_evaluate",
+    "title": "Evaluate",
+    "description": "Execute JavaScript in the page context and return the result. Useful for extracting data, checking state, or debugging. Works on background tabs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "expression": {
+          "type": "string",
+          "description": "JavaScript expression to evaluate (e.g., \"document.title\", \"window.localStorage.getItem('key')\")"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      },
+      "required": [
+        "expression"
+      ]
+    },
+    "annotations": {
+      "title": "Evaluate",
+      "readOnlyHint": false,
+      "destructiveHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_wait_for",
+    "title": "Wait For",
+    "description": "Wait for a condition on the page. Supports: selector (CSS element), text (body text contains string), or url (location matches glob). Useful for SPAs, redirects, and dynamic content.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector to wait for (mutually exclusive with text/url)"
+        },
+        "text": {
+          "type": "string",
+          "description": "Wait until document.body.innerText includes this string (mutually exclusive with selector/url)"
+        },
+        "url": {
+          "type": "string",
+          "description": "Wait until window.location.href matches this glob pattern, e.g. \"**/dashboard\" (mutually exclusive with selector/text)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Maximum time to wait in milliseconds (default: 10000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Wait For",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_scroll",
+    "title": "Scroll",
+    "description": "Scroll to an element or position on the page. Works on background tabs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Element ref from a snapshot or firefox_find, e.g. \"ref_a1b2_12\" (preferred over selector)"
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector to scroll to"
+        },
+        "x": {
+          "type": "number",
+          "description": "X coordinate to scroll to"
+        },
+        "y": {
+          "type": "number",
+          "description": "Y coordinate to scroll to"
+        },
+        "behavior": {
+          "type": "string",
+          "description": "Scroll behavior: instant or smooth (default: instant). Smooth waits up to 1 s for the scroll to finish before reporting positions.",
+          "enum": [
+            "smooth",
+            "instant"
+          ]
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Scroll",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_get_element",
+    "title": "Get Element",
+    "description": "Get detailed information about an element including attributes, styles, visibility, and position. Works on background tabs.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Element ref from a snapshot or firefox_find, e.g. \"ref_a1b2_12\" (preferred over selector)"
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector for the element"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Get Element",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_get_page_state",
+    "title": "Get Page State",
+    "description": "Get structured page state as JSON: URL, title, viewport, errors, headings, links, buttons, inputs, images, landmarks with counts. Headings, links, buttons and inputs carry a `ref` you can pass to firefox_click / firefox_type / firefox_scroll / firefox_press_key. Default item caps: headings 30, links 50, buttons 30, inputs 30, images 20 (raise with the max* params). Long strings are shortened with `truncated: true` and `rawLength` metadata. Password fields are masked (\"***\"). Cheaper than screenshots.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "maxHeadings": {
+          "type": "number",
+          "description": "Max headings to return (default: 30)"
+        },
+        "maxLinks": {
+          "type": "number",
+          "description": "Max links to return (default: 50)"
+        },
+        "maxButtons": {
+          "type": "number",
+          "description": "Max buttons to return (default: 30)"
+        },
+        "maxInputs": {
+          "type": "number",
+          "description": "Max inputs to return (default: 30)"
+        },
+        "maxImages": {
+          "type": "number",
+          "description": "Max images to return (default: 20)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Get Page State",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_get_accessibility_snapshot",
+    "title": "Get Accessibility Snapshot",
+    "description": "Primary way to read a page: compact accessibility tree, one line per element with [ref_N] handles you can pass as ref to click/type/scroll/press_key. filter=interactive lists only actionable elements. Cheaper than screenshots. Refs stay valid until navigation.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "text",
+            "json"
+          ],
+          "description": "text (default): one line per element; json: nested tree with ref on every node"
+        },
+        "filter": {
+          "type": "string",
+          "enum": [
+            "all",
+            "interactive"
+          ],
+          "description": "all (default): full tree; interactive: flat list of visible actionable elements"
+        },
+        "maxDepth": {
+          "type": "number",
+          "description": "Maximum tree depth to traverse (default: 15)"
+        },
+        "maxNodes": {
+          "type": "number",
+          "description": "Maximum nodes to include (default: 200, max 2000)"
+        },
+        "ref": {
+          "type": "string",
+          "description": "Element ref from a snapshot or firefox_find, e.g. \"ref_a1b2_12\" (preferred over selector)"
+        },
+        "selector": {
+          "type": "string",
+          "description": "CSS selector for root element (default: body)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Get Accessibility Snapshot",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "anthropic/alwaysLoad": true
+    }
+  },
+  {
+    "name": "firefox_find",
+    "title": "Find",
+    "description": "Find elements by visible text or accessible name (substring, or regex=true). Returns up to maxResults (default 20) matches as [ref_N] lines with their landmark/heading context; pass a ref to click/type/scroll. Cheaper than a full snapshot on large pages.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab ID (default: your current tab)"
+        },
+        "query": {
+          "type": "string",
+          "description": "Text to search for (case-insensitive substring, max 200 chars)"
+        },
+        "regex": {
+          "type": "boolean",
+          "description": "Treat query as a case-insensitive regular expression (default: false)"
+        },
+        "maxResults": {
+          "type": "number",
+          "description": "Maximum matches to return (default: 20)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      },
+      "required": [
+        "query"
+      ]
+    },
+    "annotations": {
+      "title": "Find",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    },
+    "_meta": {
+      "anthropic/alwaysLoad": true
+    }
+  },
+  {
+    "name": "firefox_start_loop",
+    "title": "Start Loop",
+    "description": "Start a focus loop. Claude will automatically continue working on the prompt until max iterations reached or completion promise detected. Uses Stop hook enforcement - Claude cannot skip the loop.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "The task prompt to work on iteratively"
+        },
+        "maxIterations": {
+          "type": "number",
+          "description": "Maximum iterations before stopping (default: 10, max: 50)"
+        },
+        "completionPromise": {
+          "type": "string",
+          "description": "Text to signal completion. When Claude outputs <promise>THIS_TEXT</promise>, the loop ends."
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      },
+      "required": [
+        "prompt"
+      ]
+    },
+    "annotations": {
+      "title": "Start Loop",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_stop_loop",
+    "title": "Stop Loop",
+    "description": "Stop the active focus loop. The current iteration will complete, then Claude will be allowed to exit.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Stop Loop",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_loop_status",
+    "title": "Loop Status",
+    "description": "Get the current focus loop status. Returns: active, iteration, maxIterations, prompt, completionPromise, startedAt.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Loop Status",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_handle_consent",
+    "title": "Handle Consent",
+    "description": "Explicit consent dismissal tool. Dismisses common cookie/consent dialogs and modals.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        },
+        "scanTimeout": {
+          "type": "number",
+          "description": "How long to scan for consent elements in milliseconds (default: 3000, range: 1000-10000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Handle Consent",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_set_config",
+    "title": "Set Config",
+    "description": "Set per-session configuration for this agent. Currently supports allowedDomains to restrict navigation to specific domains (security sandboxing).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "allowedDomains": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of allowed domains for navigation. Supports wildcards: \"*.example.com\". When set, firefox_navigate and firefox_create_window will block requests to unlisted domains. Pass empty array to clear restriction."
+        },
+        "handleConsent": {
+          "type": "boolean",
+          "description": "Enable automatic consent handling after navigation (fire-and-forget, 800ms delay)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Set Config",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_diff_page_state",
+    "title": "Diff Page State",
+    "description": "Diff two getPageState snapshots to see what changed: added/removed/changed headings, links, buttons, inputs. Useful for verifying form submissions, navigation effects, and regression detection.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "before": {
+          "type": "object",
+          "description": "First getPageState snapshot (the \"before\" state)"
+        },
+        "after": {
+          "type": "object",
+          "description": "Second getPageState snapshot (the \"after\" state)"
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      },
+      "required": [
+        "before",
+        "after"
+      ]
+    },
+    "annotations": {
+      "title": "Diff Page State",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "firefox_diagnose",
+    "title": "Diagnose",
+    "description": "Diagnose Claudezilla connection health. Checks socket file, auth token, connection status, and extension version. Use when troubleshooting connection issues.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {}
+    },
+    "annotations": {
+      "title": "Diagnose",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  }
+]

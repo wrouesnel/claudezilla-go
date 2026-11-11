@@ -1,8 +1,9 @@
-# Claudezilla (hardened): selective, seamless remote control
+# claudezilla-go: design, audit and security model
 
 This is a fork of [boot-industries/claudezilla](https://github.com/boot-industries/claudezilla)
-v0.7.7 (upstream commit `5e4a237`), released as **`claudezilla-hardened@wrouesnel.github.io`
-v0.7.7.2**. README.md and SECURITY.md describe upstream. This file describes what's different and why.
+v0.7.7 (upstream commit `5e4a237`), released as **`claudezilla-go@wrouesnel.github.io`
+v0.7.7.3**. README.md gives the overview; SECURITY.md is upstream's. This file describes what's
+different and why.
 
 Upstream assumes Claude Code and Firefox run on the same computer. This fork is aimed at running
 Claude Code agents on a **separate agent host** and giving them a browser in two ways:
@@ -39,15 +40,15 @@ installers, `plugin/` (Claude Code hooks/skill), CI, git history.
   - An auto-allowed, unlimited loop tool plus the Stop hook could keep re-running an injected prompt.
   - The socket, token and log could fall back to `/tmp`.
   - The installers ran `npm install` without using the lockfile.
-- **Dependencies:** `@modelcontextprotocol/sdk` 1.32.2 re-resolved into `mcp/package-lock.json`.
-  That's 95 packages, all from the npm registry with integrity hashes and no install scripts.
-  npm audit and OSV report no known vulnerabilities.
+- **Dependencies:** the Node.js MCP server pulled in 95 npm packages (the MCP SDK with an HTTP
+  server stack, OAuth, ajv and zod) for a stdio server that uses none of them. The fork replaced
+  the host and MCP server with Go, using the standard library only, so `go.mod` has no requirements.
 
 ## Changes from upstream
 
 | Area | Change |
 |---|---|
-| Takeover protection | New gecko ID, so AMO updates for `claudezilla@boot.industries` can never replace this build. No `update_url` in the source; `scripts/build-xpi.py --update-url` adds one for self-hosted updates. The native host is renamed `claudezilla_hardened` and accepts only this extension ID. |
+| Takeover protection | New gecko ID, so AMO updates for `claudezilla@boot.industries` can never replace this build. No `update_url` in the source; `scripts/build-xpi.py --update-url` adds one for self-hosted updates. The native host is renamed `claudezilla_go` and accepts only this extension ID. |
 | No outbound traffic | Donation page, Stripe handling, support links and Google Fonts are removed. The CSP has `connect-src 'none'`. The welcome page opens once instead of on every popup open. |
 | `firefox_evaluate` | **As upstream**: off until enabled in the popup, and not in the auto-allow list, so each call prompts in Claude Code. It runs with extension privileges, and its blocklist isn't a real boundary. |
 | Runtime messages | Content scripts may only send `openPopup`. Only our own extension pages may query status or stop a loop. The legacy navigate, click, type and screenshot handlers are gone. |
@@ -58,9 +59,10 @@ installers, `plugin/` (Claude Code hooks/skill), CI, git history.
 | Typing | Password fields are refused. You sign in yourself. |
 | Loops | Default 10 iterations, hard cap 50. `firefox_start_loop` and `firefox_set_config` are no longer auto-allowed. The Stop hook trusts only a socket and token we own, never one in `/tmp`. |
 | IPC | No fallback to a shared temp dir. Screenshots to `savePath` are created with `O_EXCL`. |
-| Managed policy | Firefox managed storage (`~/.mozilla/managed-storage/claudezilla-hardened@wrouesnel.github.io.json`) can fix `allowEvaluate` and `privateMode` (the popup shows them locked). Only the agent-host installer writes it. Without it, nothing changes. |
+| Managed policy | Firefox managed storage (`~/.mozilla/managed-storage/claudezilla-go@wrouesnel.github.io.json`) can fix `allowEvaluate` and `privateMode` (the popup shows them locked). Only the agent-host installer writes it. Without it, nothing changes. |
 | Remote use | `scripts/claudezilla-remote-bridge` forwards the socket and keeps the token current (OpenSSH by default, any transport via a config hook). `install/install-desktop-host.sh` installs only the native host. `install/install-agent-host.sh` sets up the dedicated headless browser. |
-| Supply chain | Committed npm lockfile. Installers use `npm ci --ignore-scripts`. `scripts/build-xpi.py` makes a reproducible XPI. Host and MCP server are installed as read-only versioned copies. |
+| Go host and MCP server | `claudezilla-host` and `claudezilla-mcp` replace the Node.js `host/` and `mcp/`. They use the same socket protocol and produce byte-identical `tools/list` and `initialize` output (the catalog is data in `internal/mcp/catalog/`), with no third-party modules. Per agent: about 10 ms startup and 4 MB of memory, against about 0.5 s and 75 MB. |
+| Supply chain | No npm dependencies at runtime. `scripts/build-xpi.py` makes a reproducible XPI. Binaries are installed read-only in `~/.local/share/claudezilla-go/<ver>/bin`, with a `current` symlink. |
 | Removed | `worker/`, `website/`, `marketing/`, `wireframes/`, the stale 0.5.9 zip, upstream CI. |
 
 Not changed, so be aware of it:
@@ -85,8 +87,8 @@ Not changed, so be aware of it:
 ```
 Browser host (your Firefox)                          Agent host
   extension (signed XPI)                               Claude Code
-    └ native messaging → host (read-only copy,           └ mcp/server.js  (CLAUDEZILLA_IPC_DIR=…/claudezilla-remote)
-        ~/.local/share/claudezilla-hardened/<ver>)           ├ claudezilla.sock  ← socket forward ← browser-host socket
+    └ native messaging → claudezilla-host                └ claudezilla-mcp  (CLAUDEZILLA_IPC_DIR=…/claudezilla-remote)
+        (~/.local/share/claudezilla-go/<ver>/bin)            ├ claudezilla.sock  ← socket forward ← browser-host socket
         ├ $XDG_RUNTIME_DIR/claudezilla.sock                  └ claudezilla-auth.token ← token refresh ← browser-host token
         └ $XDG_RUNTIME_DIR/claudezilla-auth.token
 ```
@@ -95,7 +97,7 @@ Browser host (your Firefox)                          Agent host
 
 ```sh
 python3 -I scripts/build-xpi.py [--update-url https://…/updates.json]   # dist/<id>-<ver>.unsigned.xpi + sha256
-node --test                                                             # 129 tests
+make test                                                               # go test + node --test
 ```
 
 Release Firefox only installs Mozilla-signed XPIs. Either sign the XPI unlisted through the AMO API
@@ -131,5 +133,7 @@ git fetch upstream && git log --oneline HEAD..upstream/main
 git diff HEAD...upstream/main -- extension host mcp install plugin   # review before merging
 ```
 
-After merging, review any new network calls, permissions and message handlers. Re-run OSV against
-`mcp/package-lock.json`, bump the fourth version component, and rebuild.
+After merging, review any new network calls, permissions and message handlers in the extension.
+Port any host or MCP changes to Go (tool definitions are JSON in
+`internal/mcp/catalog/`), bump the fourth version component in `extension/manifest.json` and
+`internal/version`, and rebuild.

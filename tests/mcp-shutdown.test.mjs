@@ -6,7 +6,8 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const SERVER_JS = new URL('../mcp/server.js', import.meta.url).pathname;
+// The Go MCP server (go build -o bin/ ./cmd/...), or CLAUDEZILLA_MCP_BIN.
+const SERVER_BIN = process.env.CLAUDEZILLA_MCP_BIN ?? new URL('../bin/claudezilla-mcp', import.meta.url).pathname;
 
 // Fake host on a private CLAUDEZILLA_IPC_DIR that answers every command and
 // counts goodbyes.
@@ -34,7 +35,7 @@ describe('MCP server shutdown', { skip: process.platform === 'win32' }, () => {
   it('exits after a single goodbye when the client closes stdin', async () => {
     const host = await startFakeHost();
     try {
-      const child = spawn(process.execPath, [SERVER_JS], {
+      const child = spawn(SERVER_BIN, [], {
         env: { ...process.env, CLAUDEZILLA_IPC_DIR: host.dir },
         stdio: ['pipe', 'pipe', 'ignore'],
       });
@@ -62,7 +63,7 @@ describe('MCP server shutdown', { skip: process.platform === 'win32' }, () => {
     const marker = join(dir, 'started');
     writeFileSync(join(dir, 'claudezilla-auth.token'), 'x'.repeat(64), { mode: 0o600 });
     try {
-      const child = spawn(process.execPath, [SERVER_JS], {
+      const child = spawn(SERVER_BIN, [], {
         env: {
           ...process.env,
           CLAUDEZILLA_IPC_DIR: dir,

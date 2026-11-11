@@ -1,0 +1,30 @@
+{
+  "name": "firefox_activate",
+  "title": "Activate",
+  "description": "Activate Claudezilla browser tools. Call this before using any firefox_* tools. Optional: specify a category to load only what you need. Categories: \"core\" (navigate/click/type/screenshot — default), \"devtools\" (console/network/evaluate), \"inspection\" (content/element/wait), \"multiagent\" (tab space management), \"loop\" (iterative dev), \"config\" (viewport/privacy/consent), \"diagnose\" (health check), \"all\" (everything). Returns list of activated tools.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "category": {
+        "type": "string",
+        "description": "Tool category to activate (default: \"core\")",
+        "enum": [
+          "core",
+          "devtools",
+          "inspection",
+          "multiagent",
+          "loop",
+          "config",
+          "diagnose",
+          "all"
+        ]
+      }
+    }
+  },
+  "annotations": {
+    "title": "Activate",
+    "readOnlyHint": false,
+    "destructiveHint": false,
+    "openWorldHint": false
+  }
+}

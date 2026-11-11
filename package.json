@@ -1,29 +1,21 @@
 {
   "name": "claudezilla",
-  "version": "0.7.7.2",
-  "description": "Firefox extension for Claude Code browser automation",
+  "version": "0.7.7.3",
+  "description": "claudezilla-go: Firefox browser automation for Claude Code (extension tests; the host and MCP server are Go)",
   "private": true,
   "scripts": {
-    "build:ext": "web-ext build --source-dir=extension --artifacts-dir=web-ext-artifacts --overwrite-dest",
-    "lint:ext": "web-ext lint --source-dir=extension",
-    "install:host": "cd host && npm install",
-    "install:macos": "./install/install-macos.sh",
-    "test": "node --test",
-    "test:install": "echo 'Run: npm run install:macos && load extension in about:debugging'"
+    "test": "node --test"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/boot-industries/claudezilla"
+    "url": "https://github.com/wrouesnel/claudezilla-go"
   },
-  "author": "Chris Lyons <support@boot.industries>",
+  "author": "Chris Lyons <support@boot.industries> (upstream); claudezilla-go fork",
   "license": "MIT",
   "keywords": [
     "claude",
     "firefox",
     "browser-automation",
     "webextension"
-  ],
-  "devDependencies": {
-    "web-ext": "10.4.0"
-  }
+  ]
 }

@@ -17,8 +17,8 @@ set -euo pipefail
 # can never hang Claude Code's exit path. Each `nc` invocation uses -w 2.
 NC_TIMEOUT=2
 
-# IPC directory: mirrors host/ipc.js getSafeTempDir() tier order (read-only):
-# CLAUDEZILLA_IPC_DIR, XDG_RUNTIME_DIR, ~/.claudezilla/, then the temp dir.
+# IPC directory: mirrors internal/ipc Dir() (read-only):
+# CLAUDEZILLA_IPC_DIR, XDG_RUNTIME_DIR, ~/.claudezilla/ (never a shared temp dir).
 # The host creates the directory on startup; this hook is a consumer only.
 if [[ -n "${CLAUDEZILLA_IPC_DIR:-}" ]] && [[ -d "$CLAUDEZILLA_IPC_DIR" ]]; then
   IPC_DIR="$CLAUDEZILLA_IPC_DIR"

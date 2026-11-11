@@ -8,7 +8,7 @@
 #           │  token     (token file copied here, refreshed when it changes)
 #     ┌─────┘
 #   agent host: $CLAUDEZILLA_IPC_DIR/{claudezilla.sock,claudezilla-auth.token} (0700)
-#     └─ mcp/server.js, run by Claude Code as MCP server "claudezilla-desktop"
+#     └─ claudezilla-mcp, run by Claude Code as MCP server "claudezilla-desktop"
 #
 # Nothing is reachable unless the forward is running, so stopping it (or
 # refusing it on the browser host) takes control back at once. The token is
@@ -42,7 +42,6 @@ REMOTE_TOKEN="${CLAUDEZILLA_REMOTE_TOKEN:-$(dirname "$REMOTE_SOCKET")/claudezill
 IPC_DIR="${CLAUDEZILLA_IPC_DIR:-${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/claudezilla-remote}"
 SOCK="$IPC_DIR/claudezilla.sock"
 TOKEN="$IPC_DIR/claudezilla-auth.token"
-REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TOKEN_POLL_S="${CLAUDEZILLA_TOKEN_POLL_S:-15}"
 
 install -d -m 0700 "$IPC_DIR"
@@ -86,10 +85,13 @@ case "${1:-}" in
     bridge_token
     ;;
   mcp-add)
+    # Installed by install/install-agent-host.sh or install-desktop-host.sh.
+    MCP_BIN="${CLAUDEZILLA_MCP_BIN:-${XDG_DATA_HOME:-$HOME/.local/share}/claudezilla-go/current/bin/claudezilla-mcp}"
+    [[ -x "$MCP_BIN" ]] || { echo "claudezilla-mcp not found at $MCP_BIN (run an installer, or set CLAUDEZILLA_MCP_BIN)" >&2; exit 1; }
     claude mcp remove --scope user claudezilla-desktop >/dev/null 2>&1 || true
     exec claude mcp add --scope user claudezilla-desktop \
       -e "CLAUDEZILLA_IPC_DIR=$IPC_DIR" -e CLAUDEZILLA_SCREENSHOT_FILES=0 \
-      -- node "$REPO/mcp/server.js"
+      -- "$MCP_BIN"
     ;;
   status)
     printf 'browser host: %s (%s)\nipc dir:      %s\nconfig:       %s\n' "${REMOTE_HOST:-custom transport}" "$REMOTE_SOCKET" "$IPC_DIR" "$CONFIG"

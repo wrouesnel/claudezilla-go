@@ -33,8 +33,7 @@ host/run.sh
 # Runtime files
 /tmp/claudezilla.sock
 
-# Lock files (keep root package-lock if added)
-mcp/package-lock.json
+# Lock files: mcp/package-lock.json is committed and installed with `npm ci`
 host/package-lock.json
 
 # Private documentation (PREFIX docs for local use only)

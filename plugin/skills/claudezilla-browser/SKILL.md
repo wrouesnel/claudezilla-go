@@ -77,7 +77,7 @@ Claudezilla drives the user's real Firefox: open tabs, navigate, read pages, cli
 - **Claude Code:** screenshots arrive as inline images.
 - **Harnesses that can't show MCP images:** run the server with `CLAUDEZILLA_SCREENSHOT_FILES=1`. Each screenshot taken without an explicit `savePath` is then also written to `claudezilla-screenshots/` in the temp directory (newest 50 kept), or to `CLAUDEZILLA_OUTPUT_DIR` when set, and the text block reports `savedPath`. Open it with the harness's file reader.
 - All tools are listed by default. Lazy loading (a single `firefox_activate` gateway) is opt-in via `--tools lazy` or `CLAUDEZILLA_TOOL_MODE=lazy`; in that mode call `firefox_activate` first.
-- In this fork an agent can't turn private mode off, type into password fields or open `file:` URLs. Ask the user to sign in themselves; serve local files over `http://localhost`.
+- Agent tabs use the browser's normal session (with its logins) unless the user turned on private windows in the add-on popup; an agent can't turn that off. Agents can't type into password fields or open `file:` URLs. Ask the user to sign in themselves; serve local files over `http://localhost`.
 
 ## Troubleshooting
 

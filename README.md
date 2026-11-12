@@ -31,7 +31,8 @@ on another machine drive your Firefox only while you let them, or get a headless
   sets `connect-src 'none'`.
 - **Tighter trust boundaries:**
   - Every command carries the MCP server's own agent ID, and tab ownership is always checked.
-  - Only you can turn private mode off. Agents can ask for more privacy, never less.
+  - Agent tabs use your own browsing session by default. Only you can switch them to private
+    windows, and agents can then ask for more privacy, never less.
   - Password fields are refused and `file:` URLs are blocked.
   - Network capture covers only managed tabs, with sensitive headers dropped and secrets redacted.
   - Focus loops are capped at 50 iterations.

@@ -11,8 +11,8 @@ Claude Code agents on a **separate agent host** and giving them a browser in two
 - **Your own Firefox, selectively.** An agent drives your desktop browser only while you've let it
   in. Handing over is meant to be seamless: no reinstalling, no per-click prompts for routine tools.
   The control path is a single forwarded socket, so stopping the forward takes control back at once.
-  While it runs, the agent can't touch your other tabs unless you attach one, can't turn private
-  mode off, can't read `file:` URLs, and can't type into password fields.
+  While it runs, the agent can't touch your other tabs unless you attach one, can't leave private
+  windows if you've turned them on, can't read `file:` URLs, and can't type into password fields.
 - **A browser of its own, fully.** The agent host gets a dedicated headless Firefox where the agent
   has complete control: evaluate is on, no prompts, logins persist. Nothing of yours is in it.
 
@@ -52,7 +52,7 @@ installers, `plugin/` (Claude Code hooks/skill), CI, git history.
 | No outbound traffic | Donation page, Stripe handling, support links and Google Fonts are removed. The CSP has `connect-src 'none'`. The welcome page opens once instead of on every popup open. |
 | `firefox_evaluate` | **As upstream**: off until enabled in the popup, and not in the auto-allow list, so each call prompts in Claude Code. It runs with extension privileges, and its blocklist isn't a real boundary. |
 | Runtime messages | Content scripts may only send `openPopup`. Only our own extension pages may query status or stop a loop. The legacy navigate, click, type and screenshot handlers are gone. |
-| Private mode | Set only by you, in the popup. `firefox_set_private_mode` is gone. An agent can ask for *more* privacy but never less. If a private window can't be opened, the call fails instead of silently opening a normal window. |
+| Private mode | Set only by you, in the popup (**Agent tabs → Open in private windows**). Off by default in this fork, so agent tabs work in your own session with your logins; upstream defaulted to on. `firefox_set_private_mode` is gone. An agent can ask for *more* privacy but never less. Firefox's "Run in private windows" permission is separate: it's needed only when agent tabs are private. If a private window can't be opened, the call fails instead of silently opening a normal window. |
 | Ownership | MCP always injects its own `agentId`. The extension requires one for every tab command and only resolves pool tabs the caller owns, or tabs you've attached. Other agents' IDs are truncated. |
 | Navigation | `file:` URLs are blocked, since the agent may be on another machine. |
 | Network capture | Only managed tabs are recorded. Sensitive response headers are dropped. URL fragments and more OAuth/session parameters are redacted. |
@@ -77,7 +77,7 @@ Not changed, so be aware of it:
 | | Agent host's own browser (`claudezilla`) | Your desktop (`claudezilla-desktop`) |
 |---|---|---|
 | Browser | Firefox ESR, `--headless`, dedicated profile `~/.mozilla/firefox/claudezilla-agent`, systemd user unit `claudezilla-agent-browser`, started on demand by the MCP server | Your own Firefox |
-| Policy | Managed: evaluate on, normal windows (logins persist in that profile). Firefox never lets extensions open `file:` URLs, so serve local files over `http://localhost` | Popup settings, private windows by default |
+| Policy | Managed: evaluate on, normal windows (logins persist in that profile). Firefox never lets extensions open `file:` URLs, so serve local files over `http://localhost` | Popup settings: normal windows, in a Claudezilla tab group in your active window |
 | Claude Code permissions | `mcp__claudezilla`: every tool, no prompts | Explicit allow-list; evaluate, loops and config prompt |
 | Who can connect | Local Claude Code sessions (socket + token in `$XDG_RUNTIME_DIR`, 0600) | Only while the socket forward runs |
 | Install | `install/install-agent-host.sh` | `install/install-desktop-host.sh` + `scripts/claudezilla-remote-bridge` |

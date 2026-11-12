@@ -929,10 +929,17 @@ describe('screenshot sizing', () => {
 
 describe('hardened build policies', () => {
   it('an agent cannot opt out of private mode with private:false', async () => {
-    const harness = createHarness({ allowTabCreate: true });
+    const harness = createHarness({ allowTabCreate: true, storage: { claudezilla: { privateMode: true } } });
     const created = await harness.command('createWindow', { url: 'https://example.test/agent', agentId: 'agent-a', private: false });
     assert.equal(created.success, false);
     assert.match(created.error, /Could not open a private window/);
+  });
+
+  it('opens agent tabs in a normal window when the user has no setting', async () => {
+    const harness = createHarness({ allowTabCreate: true });
+    const created = await harness.command('createWindow', { url: 'https://example.test/agent', agentId: 'agent-a' });
+    assert.equal(created.success, true, created.error);
+    assert.equal(created.result.isPrivate, false);
   });
 
   it('rejects tab-targeting commands without an agentId', async () => {

@@ -661,7 +661,7 @@
         </p>
         <div id="permissionStatus" class="status-badge disabled">
           <span class="dot"></span>
-          Private Windows: Not Enabled
+          Run in private windows: not allowed (optional)
         </div>
       </div>
       <div class="hero-visual" style="grid-column: 2;">
@@ -791,10 +791,12 @@
 
     <!-- Setup Guide -->
     <div class="setup-guide">
-      <h2 class="section-title">🔒 Enable Private Window Access</h2>
+      <h2 class="section-title">🔒 Optional: private windows for agent tabs</h2>
       <p class="section-subtitle">
-        Claudezilla works best with private window permission. This gives Claude full browser
-        control while keeping your automation isolated and secure.
+        By default, agent tabs open in your normal browsing session, so agents can use the sites
+        you're signed in to. If you'd rather they work without your logins, turn on
+        <strong>Agent tabs → Open in private windows</strong> in the Claudezilla popup, and allow the
+        add-on in private windows as below. You don't need this permission otherwise.
       </p>
 
       <div class="steps">
@@ -829,7 +831,7 @@
           <div class="step-number">2</div>
           <div class="step-content">
             <h3>Find Claudezilla Extension</h3>
-            <p>Locate "Claudezilla" in your installed extensions list.</p>
+            <p>Locate "Claudezilla Go" in your installed extensions list.</p>
             <div class="diagram">
               <div class="extension-list">
                 <div class="extension-item">
@@ -904,11 +906,12 @@
       </div>
 
       <div class="note">
-        <strong>⚡ Why Private Windows?</strong>
+        <strong>⚡ Two separate settings</strong>
         <p>
-          Private window permission allows Claude to create and control browser tabs without
-          interference. You can still use Claudezilla without this permission, but some features
-          will be restricted. You can enable this anytime from <code>about:addons</code>.
+          Firefox's "Run in private windows" only lets the add-on work in private windows. Whether
+          agent tabs open in one is the popup's <strong>Open in private windows</strong> setting
+          (off by default). Agents can ask for a private window, but can't leave one when you've
+          turned that setting on.
         </p>
       </div>
     </div>

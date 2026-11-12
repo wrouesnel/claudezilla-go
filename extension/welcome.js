@@ -18,7 +18,7 @@ async function checkPermissionStatus() {
       const dot = document.createElement('span');
       dot.className = 'dot';
       permissionBadge.appendChild(dot);
-      permissionBadge.appendChild(document.createTextNode('Private Windows: Enabled ✓'));
+      permissionBadge.appendChild(document.createTextNode('Run in private windows: allowed ✓'));
     }
   } catch (e) {
     console.log('[claudezilla] Could not check permission status:', e);

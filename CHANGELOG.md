@@ -1,7 +1,21 @@
 # Changelog
 
 **Project:** claudezilla-go (a diverging fork of Claudezilla; entries from v0.7.7 down are upstream's)
-**Current Version:** 0.7.7.3
+**Current Version:** 0.7.7.4
+
+## v0.7.7.4 (2026-11-13)
+
+- Agent tabs now open in your normal browsing session by default, with your logins, in a
+  "Claudezilla" tab group in your active window. Private windows are opt-in: **Agent tabs → Open in
+  private windows** in the popup. Agents still can't leave private windows once you turn them on.
+  An existing stored setting is kept.
+- The popup puts that setting in its own "Agent tabs" section and explains both choices. Firefox's
+  "Run in private windows" permission is shown under it as a separate thing, needed only for
+  private agent tabs.
+- The welcome page calls that permission optional, and opens once on first use whatever the
+  permission says.
+- `firefox_create_window`'s description no longer claims a silent fallback to a normal window
+  (the fork fails instead), and explains the `private` parameter.
 
 ## v0.7.7.3 (2026-11-12): claudezilla-go
 

@@ -51,7 +51,7 @@ async function loadSettings() {
     showWatermarkCheckbox.checked = settings.showWatermark;
     showFocusglowCheckbox.checked = settings.showFocusglow;
     compressImagesCheckbox.checked = settings.compressImages;
-    privateModeCheckbox.checked = settings.privateMode !== false;
+    privateModeCheckbox.checked = settings.privateMode === true;
     allowEvaluateCheckbox.checked = settings.allowEvaluate;
   } catch (e) {
     console.log('[claudezilla] Could not load settings:', e.message);
@@ -226,12 +226,17 @@ async function checkPermissionStatus() {
   const permissionStateEl = document.getElementById('permissionState');
   try {
     const hasPermission = await browser.extension.isAllowedIncognitoAccess();
+    // The permission matters only when agent tabs are private.
+    const needed = privateModeCheckbox.checked;
     if (hasPermission) {
-      permissionStateEl.textContent = 'Enabled';
-      permissionStateEl.style.color = '#22C55E';
-    } else {
-      permissionStateEl.textContent = 'Not Enabled';
+      permissionStateEl.textContent = 'Allowed';
+      permissionStateEl.style.color = needed ? '#22C55E' : '#888';
+    } else if (needed) {
+      permissionStateEl.textContent = 'Not allowed: private agent tabs will fail (about:addons → Claudezilla Go)';
       permissionStateEl.style.color = '#EF4444';
+    } else {
+      permissionStateEl.textContent = 'Not allowed (not needed)';
+      permissionStateEl.style.color = '#888';
     }
   } catch (e) {
     permissionStateEl.textContent = 'Unknown';
@@ -243,10 +248,10 @@ async function checkPermissionStatus() {
 async function checkFirstRun() {
   try {
     const stored = await browser.storage.local.get('welcomePageSeen');
-    const hasPermission = await browser.extension.isAllowedIncognitoAccess();
 
-    // Show welcome page if not seen AND permission not enabled
-    if (!stored.welcomePageSeen && !hasPermission) {
+    // Show the welcome page once. It no longer depends on the private-window
+    // permission, which agents need only when private windows are turned on.
+    if (!stored.welcomePageSeen) {
       browser.tabs.create({ url: browser.runtime.getURL('welcome.html') });
       await browser.storage.local.set({ welcomePageSeen: true });
     }
@@ -325,7 +330,7 @@ async function init() {
   compressImagesCheckbox.addEventListener('change', saveSettings);
   allowEvaluateCheckbox.addEventListener('change', saveSettings);
   adoptCurrentWindowCheckbox.addEventListener('change', saveWindowSettings);
-  privateModeCheckbox.addEventListener('change', saveSettings);
+  privateModeCheckbox.addEventListener('change', async () => { await saveSettings(); await checkPermissionStatus(); });
 
   // Add auto-loop setting change listeners (v0.5.0)
   enableAutoDetectCheckbox.addEventListener('change', saveAutoLoopSettings);

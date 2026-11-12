@@ -11,7 +11,7 @@ description: Drive the user's own Firefox on {{device}} through the claudezilla-
 These tools (`mcp__claudezilla-{{device}}__firefox_*`) drive the user's own Firefox on {{device}}: open tabs, navigate, read pages, click, type and take screenshots. That browser carries the user's logins, cookies and open tabs, and the user may be using it right now, so treat it as theirs:
 
 - Work in tabs you open. Touch the user's own tabs only when asked (`firefox_list_all_tabs`, `firefox_attach_tab`).
-- Your tabs open in private windows unless the user has turned that off, so you won't see their sign-ins there. If a task needs a signed-in session, ask the user to sign in, or to attach their tab. You can't type into password fields.
+- Your tabs open in the user's normal session, with their sign-ins, in a "Claudezilla" tab group (unless they've turned on private windows in the add-on popup). If a site still asks you to sign in, ask the user to do it; you can't type into password fields.
 - `file:` URLs are blocked, and `firefox_evaluate` works only if the user enabled it in the add-on popup.
 - Close your tabs when you're done. They are also closed when your session ends.
 

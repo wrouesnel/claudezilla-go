@@ -86,14 +86,16 @@ const pendingRequests = new Map();
 const pendingRequestTimers = new Map();
 
 /**
- * Check if private-only mode is enabled (default: true for backward compat)
- * Set via browser.storage.local: { claudezilla: { privateMode: false } }
+ * Whether agent tabs must open in private windows. Off by default: on a desktop
+ * the point is to work in the user's own session, with their logins. The user
+ * turns it on in the popup ({ claudezilla: { privateMode: true } }); managed
+ * policy can fix it either way.
  */
 async function isPrivateModeRequired() {
   try {
     const stored = await browser.storage.local.get('claudezilla');
     const settings = stored.claudezilla || {};
-    return settings.privateMode !== false; // default true
+    return settings.privateMode === true; // default false
   } catch {
     return true;
   }
@@ -961,7 +963,7 @@ async function getSession(windowId) {
     if (claudezillaWindow.isPrivate === undefined && !win.incognito && await isPrivateModeRequired()) {
       claudezillaWindow = null;
       activeTabId = null;
-      throw new Error('Claudezilla window is not private. Set privateMode: false in storage to allow non-private windows.');
+      throw new Error('Claudezilla window is not private, but private windows are turned on in the Claudezilla popup. Call firefox_create_window to open a private one.');
     }
 
     // Get active tab

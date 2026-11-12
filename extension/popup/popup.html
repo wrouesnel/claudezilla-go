@@ -234,19 +234,12 @@
 <body>
   <h1>
     Claudezilla
-    <span class="version">v0.7.7.3 · claudezilla-go</span>
+    <span class="version">v0.7.7.4 · claudezilla-go</span>
   </h1>
 
   <div class="status">
     <div id="statusIndicator" class="status-indicator"></div>
     <span id="statusText" class="status-text">Checking...</span>
-  </div>
-
-  <div id="permissionStatus" class="info" style="display: block;">
-    <div>
-      <strong>Private Windows:</strong>
-      <span id="permissionState" style="color: #888;">Checking...</span>
-    </div>
   </div>
 
   <div class="section">
@@ -280,14 +273,20 @@
         </label>
       </div>
       <div class="setting-hint">Reduce file size (default: on)</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Agent tabs</div>
+    <div class="settings-group">
       <div class="setting-row">
         <label>
-          <input type="checkbox" id="privateMode" checked>
-          <span>Private windows</span>
+          <input type="checkbox" id="privateMode">
+          <span>Open in private windows</span>
           <span class="setting-icon">🕶</span>
         </label>
       </div>
-      <div class="setting-hint">Agent tabs open in private windows with none of your logins (default: on). Only you can change this.</div>
+      <div class="setting-hint">Off (default): agent tabs use your normal browsing session, with your logins and cookies. On: they open in private windows with none of your logins. Agents can't turn this off.</div>
       <div class="setting-row">
         <label>
           <input type="checkbox" id="adoptCurrentWindow" checked>
@@ -295,7 +294,11 @@
           <span class="setting-icon">🗗</span>
         </label>
       </div>
-      <div class="setting-hint">Attach to your active window instead of opening a new one (default: on)</div>
+      <div class="setting-hint">Put agent tabs in an orange "Claudezilla" tab group in your active window, instead of a new window (default: on). Applies to normal windows only.</div>
+      <div id="permissionStatus" class="setting-hint" style="display: block;">
+        Firefox's "Run in private windows" permission:
+        <span id="permissionState" style="color: #888;">Checking...</span>
+      </div>
     </div>
   </div>
 

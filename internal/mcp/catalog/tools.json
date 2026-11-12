@@ -2,7 +2,7 @@
   {
     "name": "firefox_create_window",
     "title": "Create Window",
-    "description": "Open a URL in the shared Claudezilla browser. SHARED POOL: One window with MAX 12 TABS shared across all Claude agents. Each call creates a new tab. When limit reached, oldest tab auto-closed. OWNERSHIP: Each tab tracks its creator - only you can close tabs you created. Auto-fallback: if private mode fails (permission not granted), automatically falls back to non-private with a warning. Returns: windowId, tabId, ownerId, tabCount, maxTabs, isPrivate.",
+    "description": "Open a URL in the shared Claudezilla browser. SHARED POOL: One window with MAX 12 TABS shared across all Claude agents. Each call creates a new tab. When limit reached, oldest tab auto-closed. OWNERSHIP: Each tab tracks its creator - only you can close tabs you created. Tabs open in the user's normal browsing session (with their logins) unless the user has turned on private windows in the Claudezilla popup. Returns: windowId, tabId, ownerId, tabCount, maxTabs, isPrivate.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -12,7 +12,7 @@
         },
         "private": {
           "type": "boolean",
-          "description": "Request private (incognito) or non-private window. Only applies when creating a NEW window. If existing window mode conflicts, returns MODE_MISMATCH error. Omit to use default."
+          "description": "true asks for a private (incognito) window, without the user's logins; it fails if Firefox doesn't allow the add-on in private windows. You can't opt out of private windows when the user has turned them on. Only applies when creating a NEW window; if the existing window's mode conflicts, returns MODE_MISMATCH. Omit to use the user's setting."
         },
         "timeout": {
           "type": "number",

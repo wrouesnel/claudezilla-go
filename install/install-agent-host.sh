@@ -138,6 +138,8 @@ if [[ -S "$XDG_RUNTIME_DIR/claudezilla.sock" ]]; then
 else
   echo "   [WARN] No socket after 30 s. Check: journalctl --user -u $UNIT"
 fi
+run_post_install_hooks
+
 cat <<MSG
 
 Done. New Claude Code sessions get the claudezilla tools with no prompts.

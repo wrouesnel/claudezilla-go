@@ -88,3 +88,20 @@ install_skill() {
   install -d -m 0755 "$dest"
   install -m 0644 "$SRC/plugin/skills/claudezilla-browser/SKILL.md" "$dest/SKILL.md"
 }
+
+# Run local post-install hooks: each executable file in
+# ${XDG_CONFIG_HOME:-~/.config}/claudezilla/post-install.d, in name order. Use them
+# for anything that has to follow an upgrade, such as re-registering the new
+# binaries with something that pinned the old ones. Each hook gets the paths in
+# its environment; a failing hook is reported but doesn't fail the install.
+run_post_install_hooks() {
+  local dir="${XDG_CONFIG_HOME:-$HOME/.config}/claudezilla/post-install.d" hook rc
+  [[ -d "$dir" ]] || return 0
+  for hook in "$dir"/*; do
+    [[ -f "$hook" && -x "$hook" ]] || continue
+    echo "== Post-install hook $(basename "$hook")"
+    CLAUDEZILLA_SRC="$SRC" CLAUDEZILLA_VERSION="$VERSION" CLAUDEZILLA_DEST="$DEST" CLAUDEZILLA_HOST_BIN="$HOST_BIN" \
+      CLAUDEZILLA_MCP_BIN="$MCP_BIN" "$hook" && rc=0 || rc=$?
+    (( rc == 0 )) || echo "   [WARN] $(basename "$hook") failed (exit $rc)"
+  done
+}

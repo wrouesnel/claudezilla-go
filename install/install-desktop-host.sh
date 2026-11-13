@@ -33,6 +33,8 @@ if (( WITH_MCP )); then
   install_skill
 fi
 
+run_post_install_hooks
+
 cat <<MSG
 
 Installed claudezilla-go $VERSION ($DEST)

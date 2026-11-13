@@ -70,6 +70,12 @@ your addons.mozilla.org API key (`AMO_JWT_ISSUER`, `AMO_JWT_SECRET`), as an unli
 isn't published. Open the signed file in Firefox to install it. ESR, Developer Edition and Nightly
 can run the unsigned `make xpi` build with `xpinstall.signatures.required=false`.
 
+After an install or upgrade, both installers run any executables in
+`~/.config/claudezilla/post-install.d/`, with `CLAUDEZILLA_SRC`, `CLAUDEZILLA_VERSION`,
+`CLAUDEZILLA_DEST`, `CLAUDEZILLA_HOST_BIN` and `CLAUDEZILLA_MCP_BIN` set. Use one for anything
+that must follow an upgrade, such as re-registering the binaries with a tool that pinned the
+old version.
+
 Coming from upstream Claudezilla? `install/uninstall-upstream.sh --dry-run` shows what it would
 remove (its native host manifest, the Node MCP registration, the extra permission rules, the skill
 link and the headless unit). Run it without `--dry-run`, then remove the old extension in

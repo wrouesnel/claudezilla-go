@@ -1,7 +1,18 @@
 # Changelog
 
 **Project:** claudezilla-go (a diverging fork of Claudezilla; entries from v0.7.7 down are upstream's)
-**Current Version:** 0.7.7.5
+**Current Version:** 0.7.7.6
+
+## v0.7.7.6 (2026-11-16)
+
+Agent tabs are easier to find.
+
+- Agent tabs get a normal window of their own by default, opened in the background (not
+  focused), in an orange "Claudezilla" tab group, instead of going into whichever of your windows
+  was focused last. "Reuse current window" in the popup brings back the old behaviour.
+- New tool `firefox_reveal_tab` (35 tools): selects one of the agent's tabs (or a tab you
+  attached) and brings its window to the front. Agents call it when you ask to see a tab.
+- The popup lists open agent tabs, with their owner and a **Show** button for each.
 
 ## v0.7.7.5 (2026-11-15)
 

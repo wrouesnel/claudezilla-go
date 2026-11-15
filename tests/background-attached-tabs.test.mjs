@@ -54,8 +54,12 @@ function createHarness({
   incognitoAccess = true,
   contentResults = {},
   managed = null,
+  // Most tests were written when agent tabs went into the user's window by
+  // default; keep that unless a test says otherwise.
+  adoptByDefault = true,
 } = {}) {
-  const storage = structuredClone(initialStorage);
+  const storage = structuredClone(adoptByDefault && !Object.hasOwn(initialStorage, 'adoptCurrentWindow')
+    ? { adoptCurrentWindow: true, ...initialStorage } : initialStorage);
   const windows = new Map((seededWindows ?? [{ id: 7, incognito: false }]).map((win) => [win.id, { ...win }]));
   const tabs = new Map((seededTabs ?? [
     {
@@ -68,7 +72,7 @@ function createHarness({
       incognito: false,
     },
   ]).map((tab) => [tab.id, { ...tab }]));
-  const calls = { tabsCreated: 0, windowsCreated: 0, windowsRemoved: [], contentActions: [], contentTargets: [], tabCreateOptions: [], tabUpdates: [], captures: { tab: [], visible: [] }, captureOpts: [] };
+  const calls = { tabsCreated: 0, windowsCreated: 0, windowsRemoved: [], contentActions: [], contentTargets: [], tabCreateOptions: [], tabUpdates: [], windowUpdates: [], windowCreateOptions: [], captures: { tab: [], visible: [] }, captureOpts: [] };
   let resolveWindowGetStarted;
   const windowGetStarted = new Promise((resolve) => { resolveWindowGetStarted = resolve; });
   const nativeMessages = event();
@@ -155,6 +159,7 @@ function createHarness({
       },
       async create(options = {}) {
         calls.windowsCreated += 1;
+        calls.windowCreateOptions.push(structuredClone(options));
         if (!allowWindowCreate) throw new Error('test forbids creating windows');
         const id = 7 + calls.windowsCreated;
         const tab = {
@@ -170,8 +175,9 @@ function createHarness({
         windows.set(id, { id, incognito: !!options.incognito });
         return { ...windows.get(id), tabs: [{ ...tab }] };
       },
-      async update() {
-        return { id: 7, width: 1280, height: 800 };
+      async update(windowId, changes = {}) {
+        calls.windowUpdates.push({ windowId, changes: structuredClone(changes) });
+        return { id: windowId ?? 7, width: 1280, height: 800 };
       },
       async remove(windowId) {
         if (!windows.has(windowId)) throw new Error('window not found');
@@ -284,7 +290,13 @@ function createHarness({
     return response;
   }
 
-  return { browser, calls, command, storage, tabsRemoved, windowGetStarted };
+  // A runtime message from the add-on's own popup page.
+  async function popupMessage(action, params = {}) {
+    const [response] = runtimeMessages.emit({ action, params }, { id: browser.runtime.id, url: browser.runtime.getURL('popup/popup.html') });
+    return response;
+  }
+
+  return { browser, calls, command, popupMessage, storage, tabsRemoved, windowGetStarted };
 }
 
 describe('attached user tabs', () => {
@@ -1030,5 +1042,61 @@ describe('content script readiness', () => {
     };
     const res = await harness.command('getContent', { tabId: created.result.tabId, agentId: 'agent-a' });
     assert.equal(res.success, true, res.error);
+  });
+});
+
+describe('finding agent tabs', () => {
+  it('gives the pool its own unfocused normal window by default', async () => {
+    const harness = createHarness({ allowTabCreate: true, allowWindowCreate: true, adoptByDefault: false });
+    const created = await harness.command('createWindow', { url: 'https://example.test/agent', agentId: 'agent-a' });
+    assert.equal(created.success, true, created.error);
+    assert.equal(created.result.isNewWindow, true);
+    assert.equal(created.result.isPrivate, false);
+    assert.equal(harness.calls.windowsCreated, 1);
+    assert.equal(harness.calls.windowCreateOptions[0].focused, false);
+    assert.equal(harness.calls.windowCreateOptions[0].incognito, false);
+    assert.equal(harness.calls.tabsCreated, 0, 'nothing added to the user window');
+  });
+
+  it('reveals an owned tab: selects it and focuses its window', async () => {
+    const harness = createHarness({ allowTabCreate: true, allowWindowCreate: true, adoptByDefault: false });
+    const first = await harness.command('createWindow', { url: 'https://example.test/one', agentId: 'agent-a' });
+    await harness.command('createWindow', { url: 'https://example.test/two', agentId: 'agent-a' });
+    harness.calls.tabUpdates.length = 0;
+
+    const revealed = await harness.command('revealTab', { tabId: first.result.tabId, agentId: 'agent-a' });
+
+    assert.equal(revealed.success, true, revealed.error);
+    assert.equal(revealed.result.revealed, true);
+    assert.equal((await harness.browser.tabs.get(first.result.tabId)).active, true);
+    assert.deepEqual(harness.calls.windowUpdates.at(-1), { windowId: first.result.windowId, changes: { focused: true } });
+  });
+
+  it('refuses to reveal another agent\'s tab or an unmanaged tab', async () => {
+    const harness = createHarness({ allowTabCreate: true, allowWindowCreate: true, adoptByDefault: false });
+    const created = await harness.command('createWindow', { url: 'https://example.test/one', agentId: 'agent-a' });
+
+    const other = await harness.command('revealTab', { tabId: created.result.tabId, agentId: 'agent-b' });
+    const user = await harness.command('revealTab', { tabId: 42, agentId: 'agent-a' });
+
+    assert.equal(other.success, false);
+    assert.match(other.error, /OWNERSHIP/);
+    assert.equal(user.success, false);
+    assert.deepEqual(harness.calls.windowUpdates, []);
+  });
+
+  it('lets the popup list agent tabs and show one, but not a user tab', async () => {
+    const harness = createHarness({ allowTabCreate: true, allowWindowCreate: true, adoptByDefault: false });
+    const created = await harness.command('createWindow', { url: 'https://example.test/one', agentId: 'agent-a' });
+
+    const listed = await harness.popupMessage('listAgentTabs');
+    const shown = await harness.popupMessage('revealAgentTab', { tabId: created.result.tabId });
+    const refused = await harness.popupMessage('revealAgentTab', { tabId: 42 });
+
+    assert.equal(listed.success, true, listed.error);
+    assert.deepEqual(structuredClone(listed.result.tabs.map((t) => t.tabId)), [created.result.tabId]);
+    assert.equal(shown.success, true, shown.error);
+    assert.equal(refused.success, false);
+    assert.match(refused.error, /Not an agent tab/);
   });
 });

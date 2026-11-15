@@ -126,11 +126,12 @@ cleanly, which `SIGTERM` doesn't. The agent-host unit uses it as `ExecStop`.
 
 ## Tools
 
-There are 34 tools, all listed by default.
+There are 35 tools, all listed by default.
 
 - **Browser:**
   - `firefox_create_window` opens a tab in the shared 12-tab pool.
   - `firefox_navigate`, `firefox_get_tabs`, `firefox_close_tab` and `firefox_close_window` manage tabs.
+  - `firefox_reveal_tab` shows one of the agent's tabs to you: it selects the tab and brings its window to the front.
   - `firefox_list_all_tabs`, `firefox_attach_tab` and `firefox_detach_tab` work with your own tabs.
   - `firefox_resize_window` and `firefox_set_viewport` set the window size.
 - **Reading:**

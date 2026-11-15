@@ -105,7 +105,7 @@ async function saveSettings() {
 async function loadWindowSettings() {
   try {
     const stored = await browser.storage.local.get('adoptCurrentWindow');
-    adoptCurrentWindowCheckbox.checked = stored.adoptCurrentWindow !== false;
+    adoptCurrentWindowCheckbox.checked = stored.adoptCurrentWindow === true;
   } catch (e) {
     console.log('[claudezilla] Could not load window settings:', e.message);
   }
@@ -310,6 +310,45 @@ async function stopLoop() {
   }
 }
 
+/**
+ * List the agents' tabs (pool and attached), each with a Show button that
+ * selects the tab and brings its window to the front.
+ */
+async function loadAgentTabs() {
+  const list = document.getElementById('agentTabList');
+  let tabs = [];
+  try {
+    ({ tabs } = await sendMessage('listAgentTabs'));
+  } catch {
+    return;
+  }
+  if (!tabs.length) return;
+  // SECURITY: DOM methods only (no innerHTML): titles come from web pages.
+  list.replaceChildren(...tabs.map((tab) => {
+    const row = document.createElement('div');
+    row.className = 'agent-tab';
+    const title = document.createElement('span');
+    title.className = 'title';
+    title.textContent = tab.title || tab.url || `Tab ${tab.tabId}`;
+    title.title = tab.url || '';
+    const owner = document.createElement('span');
+    owner.className = 'owner';
+    owner.textContent = (tab.attached ? 'attached · ' : '') + tab.owner;
+    const show = document.createElement('button');
+    show.textContent = 'Show';
+    show.addEventListener('click', async () => {
+      try {
+        await sendMessage('revealAgentTab', { tabId: tab.tabId });
+        window.close();
+      } catch (e) {
+        showError('Could not show the tab: ' + e.message);
+      }
+    });
+    row.append(title, owner, show);
+    return row;
+  }));
+}
+
 // Initialize
 async function init() {
   // Check for first run
@@ -320,6 +359,9 @@ async function init() {
 
   // Load window-adoption setting
   await loadWindowSettings();
+
+  // List the agents' tabs
+  await loadAgentTabs();
 
   // Load auto-loop settings (v0.5.0)
   await loadAutoLoopSettings();

@@ -44,7 +44,7 @@ Claudezilla drives the user's real Firefox: open tabs, navigate, read pages, cli
    ```json
    firefox_screenshot {}
    ```
-7. **Clean up.** Close tabs you no longer need with `firefox_close_tab`.
+7. **Clean up.** Close tabs you no longer need with `firefox_close_tab`. To show the user one of your tabs, use `firefox_reveal_tab`.
 
 ## Refs and stale-ref recovery
 

@@ -91,6 +91,30 @@
       transition: background 0.15s;
     }
 
+    .agent-tab {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 11px;
+      font-size: 11px;
+    }
+    .agent-tab .title {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #ddd;
+    }
+    .agent-tab .owner {
+      color: #888;
+      font-size: 10px;
+    }
+    .agent-tab button {
+      font-size: 10px;
+      padding: 1px 6px;
+      cursor: pointer;
+    }
+
     .setting-hint {
       font-size: 10px;
       color: #666;
@@ -234,12 +258,19 @@
 <body>
   <h1>
     Claudezilla
-    <span class="version">v0.7.7.5 · claudezilla-go</span>
+    <span class="version">v0.7.7.6 · claudezilla-go</span>
   </h1>
 
   <div class="status">
     <div id="statusIndicator" class="status-indicator"></div>
     <span id="statusText" class="status-text">Checking...</span>
+  </div>
+
+  <div class="section" id="agentTabsSection">
+    <div class="section-title">Open agent tabs</div>
+    <div id="agentTabList" class="settings-group">
+      <div class="setting-hint" style="padding-left: 11px;">None</div>
+    </div>
   </div>
 
   <div class="section">
@@ -289,12 +320,12 @@
       <div class="setting-hint">Off (default): agent tabs use your normal browsing session, with your logins and cookies. On: they open in private windows with none of your logins. Agents can't turn this off.</div>
       <div class="setting-row">
         <label>
-          <input type="checkbox" id="adoptCurrentWindow" checked>
+          <input type="checkbox" id="adoptCurrentWindow">
           <span>Reuse current window</span>
           <span class="setting-icon">🗗</span>
         </label>
       </div>
-      <div class="setting-hint">Put agent tabs in an orange "Claudezilla" tab group in your active window, instead of a new window (default: on). Applies to normal windows only.</div>
+      <div class="setting-hint">Off (default): agent tabs get a window of their own, opened in the background, in an orange "Claudezilla" tab group. On: they go in that tab group in whichever normal window you used last.</div>
       <div id="permissionStatus" class="setting-hint" style="display: block;">
         Firefox's "Run in private windows" permission:
         <span id="permissionState" style="color: #888;">Checking...</span>

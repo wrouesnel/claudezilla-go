@@ -5,6 +5,7 @@
     "mcp__claudezilla__firefox_attach_tab",
     "mcp__claudezilla__firefox_click",
     "mcp__claudezilla__firefox_close_tab",
+    "mcp__claudezilla__firefox_reveal_tab",
     "mcp__claudezilla__firefox_close_window",
     "mcp__claudezilla__firefox_create_window",
     "mcp__claudezilla__firefox_detach_tab",

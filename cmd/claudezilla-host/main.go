@@ -43,7 +43,7 @@ func init() {
 		setViewport getConsoleLogs getNetworkRequests scroll waitFor evaluate getElementInfo getPageState
 		getAccessibilitySnapshot find pressKey startLoop stopLoop getLoopState incrementLoopIteration
 		requestTabSpace grantTabSpace getSlotRequests cleanupOrphanedTabs goodbye quitBrowser
-		handleConsent getWindowMode`) {
+		handleConsent getWindowMode revealTab`) {
 		allowedCommands[c] = true
 	}
 }

@@ -453,6 +453,30 @@
     }
   },
   {
+    "name": "firefox_reveal_tab",
+    "title": "Reveal Tab",
+    "description": "Show one of your tabs to the user: make it the selected tab in its window and bring that window to the front. Use it when the user asks to see a tab or what you're doing, or when you need them to act in it (for example to sign in). It takes the user's focus, so don't call it otherwise. Defaults to your current tab.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tabId": {
+          "type": "number",
+          "description": "Tab to reveal: one you own, or one the user attached. Default: your current tab."
+        },
+        "timeout": {
+          "type": "number",
+          "description": "Request timeout in ms (5000-300000, default 150000)"
+        }
+      }
+    },
+    "annotations": {
+      "title": "Reveal Tab",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "firefox_close_window",
     "title": "Close Window",
     "description": "Close the entire Claudezilla window and all tabs. WARNING: This affects all Claude agents sharing the window. Use firefox_close_tab to close individual tabs instead.",

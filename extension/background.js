@@ -327,6 +327,36 @@ async function resolveTargetTab(targetTab, windowId, agentId, operation) {
 
 restoreAttachedTabs();
 
+/**
+ * Show a tab to the user: select it and focus (and un-minimise) its window.
+ * Only on request (an agent's firefox_reveal_tab, or the popup's Show button),
+ * since it takes the user's focus.
+ */
+async function revealTab(tabId) {
+  const tab = await browser.tabs.update(Number(tabId), { active: true });
+  const win = await browser.windows.get(tab.windowId);
+  const update = { focused: true };
+  if (win.state === 'minimized') update.state = 'normal';
+  await browser.windows.update(tab.windowId, update);
+  return { tabId: tab.id, windowId: tab.windowId, title: tab.title, url: tab.url, revealed: true };
+}
+
+/** Pool and attached tabs, for the popup's list. */
+async function listAgentTabs() {
+  const entries = [
+    ...(claudezillaWindow?.tabs || []).map((e) => ({ tabId: e.tabId, ownerId: e.ownerId, attached: false })),
+    ...[...attachedTabs.entries()].map(([tabId, e]) => ({ tabId, ownerId: e.ownerId, attached: true })),
+  ];
+  const tabs = [];
+  for (const entry of entries) {
+    const tab = await browser.tabs.get(entry.tabId).catch(() => null);
+    if (!tab) continue;
+    tabs.push({ tabId: tab.id, windowId: tab.windowId, title: tab.title, url: tab.url,
+      owner: shortOwner(entry.ownerId), attached: entry.attached, private: tab.incognito });
+  }
+  return { tabs };
+}
+
 // Screenshot mutex - serialize all screenshot requests to prevent collisions
 // (captureVisibleTab only works on visible tab, so we must switch tabs sequentially)
 let screenshotLock = Promise.resolve();
@@ -1261,11 +1291,11 @@ async function handleCliCommand(message) {
           activeTabId = tabId;
 
         } else {
-          // No window tracked. Preferred mode: ADOPT the user's last-focused
-          // normal window and open the agent tab there (still group-tagged and
-          // owner-tracked), instead of spawning a separate Claudezilla window.
-          // Toggle via the popup's "Reuse current window" setting (Window
-          // section), backed by storage.local { adoptCurrentWindow: false }.
+          // No window tracked. By default the pool gets its own window (normal,
+          // unfocused, with an orange "Claudezilla" tab group), so the user can
+          // find agent tabs. "Reuse current window" in the popup (storage.local
+          // { adoptCurrentWindow: true }) instead ADOPTS the user's last-focused
+          // normal window and opens the agent tab there, still group-tagged.
           isNewWindow = true;
           // Hardened: the user's privateMode setting is a floor; an agent may ask for
           // a private window but cannot opt out of one.
@@ -1276,7 +1306,7 @@ async function handleCliCommand(message) {
           if (!usePrivate) {
             try {
               const adoptPref = await browser.storage.local.get('adoptCurrentWindow');
-              if (adoptPref.adoptCurrentWindow !== false) {
+              if (adoptPref.adoptCurrentWindow === true) {
                 const lastFocused = await browser.windows.getLastFocused({ windowTypes: ['normal'] });
                 if (lastFocused && !lastFocused.incognito) {
                   win = lastFocused;
@@ -1365,6 +1395,13 @@ async function handleCliCommand(message) {
           message: `Tab ${claudezillaWindow.tabs.length}/${MAX_TABS}${closedTabId ? ' (closed oldest)' : ''}`,
           modeWarning: privateFallback ? 'Private window unavailable (permission not granted in Firefox settings). Fell back to non-private mode. Browsing data will persist.' : undefined
         };
+        break;
+      }
+
+      case 'revealTab': {
+        // Hardened: only a pool tab the caller owns, or a tab the user attached.
+        const tabId = await resolveTargetTab(params.tabId, params.windowId, params.agentId, 'reveal');
+        result = await revealTab(tabId);
         break;
       }
 
@@ -2309,7 +2346,7 @@ async function handleCliCommand(message) {
 // the popup; extension pages may only query status and stop a loop. All other
 // browser control goes exclusively through the native host.
 const CONTENT_SCRIPT_ACTIONS = new Set(['openPopup']);
-const EXTENSION_PAGE_ACTIONS = new Set(['ping', 'version', 'getConnectionStatus', 'getLoopState', 'stopLoop']);
+const EXTENSION_PAGE_ACTIONS = new Set(['ping', 'version', 'getConnectionStatus', 'getLoopState', 'stopLoop', 'listAgentTabs', 'revealAgentTab']);
 
 function isOwnExtensionPage(sender) {
   return !sender.tab
@@ -2352,6 +2389,17 @@ browser.runtime.onMessage.addListener((message, sender) => {
         case 'stopLoop':
           result = await sendToHost('stopLoop');
           break;
+        case 'listAgentTabs':
+          result = await listAgentTabs();
+          break;
+        case 'revealAgentTab': {
+          // The user's own click in the popup; only agent tabs are offered.
+          const { tabs } = await listAgentTabs();
+          const tabId = Number(message.params?.tabId);
+          if (!tabs.some((t) => t.tabId === tabId)) throw new Error('Not an agent tab');
+          result = await revealTab(tabId);
+          break;
+        }
         case 'openPopup':
           // Watermark click in a page. Only works during a user gesture.
           try {

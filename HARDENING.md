@@ -77,7 +77,7 @@ Not changed, so be aware of it:
 | | Agent host's own browser (`claudezilla`) | Your desktop (`claudezilla-desktop`) |
 |---|---|---|
 | Browser | Firefox ESR, `--headless`, dedicated profile `~/.mozilla/firefox/claudezilla-agent`, systemd user unit `claudezilla-agent-browser`, started on demand by the MCP server | Your own Firefox |
-| Policy | Managed: evaluate on, normal windows (logins persist in that profile). Firefox never lets extensions open `file:` URLs, so serve local files over `http://localhost` | Popup settings: normal windows, in a Claudezilla tab group in your active window |
+| Policy | Managed: evaluate on, normal windows (logins persist in that profile). Firefox never lets extensions open `file:` URLs, so serve local files over `http://localhost` | Popup settings: normal windows, in a background window of their own with a Claudezilla tab group; the popup lists agent tabs with a Show button |
 | Claude Code permissions | `mcp__claudezilla`: every tool, no prompts | Explicit allow-list; evaluate, loops and config prompt |
 | Who can connect | Local Claude Code sessions (socket + token in `$XDG_RUNTIME_DIR`, 0600) | Only while the socket forward runs |
 | Install | `install/install-agent-host.sh` | `install/install-desktop-host.sh` + `scripts/claudezilla-remote-bridge` |

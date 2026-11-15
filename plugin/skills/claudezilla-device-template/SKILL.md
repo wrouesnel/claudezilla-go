@@ -11,7 +11,8 @@ description: Drive the user's own Firefox on {{device}} through the claudezilla-
 These tools (`mcp__claudezilla-{{device}}__firefox_*`) drive the user's own Firefox on {{device}}: open tabs, navigate, read pages, click, type and take screenshots. That browser carries the user's logins, cookies and open tabs, and the user may be using it right now, so treat it as theirs:
 
 - Work in tabs you open. Touch the user's own tabs only when asked (`firefox_list_all_tabs`, `firefox_attach_tab`).
-- Your tabs open in the user's normal session, with their sign-ins, in a "Claudezilla" tab group (unless they've turned on private windows in the add-on popup). If a site still asks you to sign in, ask the user to do it; you can't type into password fields.
+- Your tabs open in the user's normal session, with their sign-ins (unless they've turned on private windows in the add-on popup), in a window of their own that opens in the background, in an orange "Claudezilla" tab group. If a site still asks you to sign in, ask the user to do it; you can't type into password fields.
+- The user may not notice your tab. When they ask to see it, or need to act in it, call `firefox_reveal_tab`: it selects the tab and brings its window to the front. Don't call it otherwise, since it takes their focus.
 - `file:` URLs are blocked, and `firefox_evaluate` works only if the user enabled it in the add-on popup.
 - Close your tabs when you're done. They are also closed when your session ends.
 
@@ -52,7 +53,7 @@ These tools (`mcp__claudezilla-{{device}}__firefox_*`) drive the user's own Fire
    ```json
    firefox_screenshot {}
    ```
-7. **Clean up.** Close tabs you no longer need with `firefox_close_tab`.
+7. **Clean up.** Close tabs you no longer need with `firefox_close_tab`. To show the user one of your tabs, use `firefox_reveal_tab`.
 
 ## Refs and stale-ref recovery
 

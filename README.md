@@ -65,6 +65,12 @@ install/install-desktop-host.sh          # native host only (for remote agents)
 install/install-desktop-host.sh --mcp    # also Claude Code on this machine
 ```
 
+Firefox 147+ may keep your profiles in `~/.config/mozilla` (the XDG layout), but it still reads
+per-user native messaging manifests only from `~/.mozilla`, and creating `~/.mozilla` would switch
+it back to the old layout. With that layout the installer puts the manifest in
+`/usr/lib/mozilla/native-messaging-hosts` (and `/usr/lib64/…`) instead, and prints the `sudo`
+commands if it can't run them itself. That's needed once; upgrades don't change the manifest.
+
 Then install the XPI. Release Firefox needs it signed by Mozilla: `make sign` does that through
 your addons.mozilla.org API key (`AMO_JWT_ISSUER`, `AMO_JWT_SECRET`), as an unlisted add-on that
 isn't published. Open the signed file in Firefox to install it. ESR, Developer Edition and Nightly

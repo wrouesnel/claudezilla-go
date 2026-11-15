@@ -45,8 +45,8 @@ install_binaries() {
 
 write_nm_manifest() {
   echo "== Native messaging manifest"
-  install -d -m 0755 "$NM_DIR"
-  cat > "$NM_DIR/$NM_NAME.json" <<JSON
+  local manifest
+  manifest="$(cat <<JSON
 {
   "name": "$NM_NAME",
   "description": "claudezilla-go browser automation bridge",
@@ -55,6 +55,39 @@ write_nm_manifest() {
   "allowed_extensions": ["$EXT_ID"]
 }
 JSON
+)"
+  # Firefox 147+ on Linux keeps a new user's profiles in $XDG_CONFIG_HOME/mozilla,
+  # but only while ~/.mozilla doesn't exist: if it appears, even empty, Firefox
+  # switches back to it and the existing profiles are no longer found. Firefox
+  # still reads per-user native messaging manifests only from
+  # ~/.mozilla/native-messaging-hosts, so with that layout the manifest has to
+  # go in the system directories instead, which needs root.
+  if [[ "$(uname -s)" == Linux && ! -e "$HOME/.mozilla" && -d "${XDG_CONFIG_HOME:-$HOME/.config}/mozilla" ]]; then
+    local staged="$BASE/$NM_NAME.json" d todo=()
+    printf '%s\n' "$manifest" > "$staged"
+    chmod 0644 "$staged"
+    echo "   Firefox uses ${XDG_CONFIG_HOME:-~/.config}/mozilla, so not creating ~/.mozilla;"
+    echo "   the manifest goes in the system directories."
+    # Mozilla's builds look in /usr/lib/mozilla, or /usr/lib64/mozilla where
+    # built that way: install to both.
+    for d in /usr/lib/mozilla/native-messaging-hosts /usr/lib64/mozilla/native-messaging-hosts; do
+      cmp -s "$staged" "$d/$NM_NAME.json" || todo+=("$d")
+    done
+    NM_DIR=/usr/lib/mozilla/native-messaging-hosts
+    if (( ${#todo[@]} == 0 )); then
+      echo "   already installed in /usr/lib{,64}/mozilla/native-messaging-hosts"
+    elif sudo -n true 2>/dev/null; then
+      for d in "${todo[@]}"; do sudo install -D -m 0644 "$staged" "$d/$NM_NAME.json"; done
+      echo "   installed in ${todo[*]}"
+    else
+      NM_NEEDS_ROOT=1
+      echo "   [ACTION] Needs root once (later upgrades don't change it). Run:"
+      for d in "${todo[@]}"; do echo "     sudo install -D -m 0644 '$staged' '$d/$NM_NAME.json'"; done
+    fi
+    return
+  fi
+  install -d -m 0755 "$NM_DIR"
+  printf '%s\n' "$manifest" > "$NM_DIR/$NM_NAME.json"
   chmod 0644 "$NM_DIR/$NM_NAME.json"
 }
 

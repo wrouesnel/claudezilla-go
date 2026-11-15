@@ -45,3 +45,8 @@ When the extension connects, the host creates claudezilla.sock and
 claudezilla-auth.token in \${XDG_RUNTIME_DIR:-~/.claudezilla} (0600).
 Note: Snap and Flatpak Firefox restrict native messaging; use a deb/tarball Firefox.
 MSG
+if [[ -n "${NM_NEEDS_ROOT:-}" ]]; then
+  echo
+  echo "[ACTION] Firefox can't find the host until the sudo commands under"
+  echo "         '== Native messaging manifest' above have been run."
+fi

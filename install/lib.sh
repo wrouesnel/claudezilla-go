@@ -81,12 +81,41 @@ PY
 
 # Copy (not link) the claudezilla-browser skill for Claude Code, so later edits
 # to the checkout don't change it.
+# install_skill [agent]: with "agent", the skill describes the agent host's own
+# headless browser instead of the user's Firefox, so agents that also have a
+# skill for the user's desktop browser pick the right one.
 install_skill() {
   local dest="$HOME/.claude/skills/claudezilla-browser"
   echo "== Skill claudezilla-browser -> $dest"
   [[ -L "$dest" ]] && rm -f "$dest"
   install -d -m 0755 "$dest"
-  install -m 0644 "$SRC/plugin/skills/claudezilla-browser/SKILL.md" "$dest/SKILL.md"
+  if [[ "${1:-}" == agent ]]; then
+    python3 -I - "$SRC/plugin/skills/claudezilla-browser/SKILL.md" "$dest/SKILL.md" <<'PY'
+import sys
+src, dst = sys.argv[1:]
+text = open(src).read()
+desc_old = next(l for l in text.splitlines() if l.startswith("description: "))
+intro_old = next(l for l in text.splitlines() if l.startswith("Claudezilla drives the user's real Firefox"))
+desc = ("description: Drive this machine's own headless Firefox, the agent browser, through the "
+        "claudezilla MCP tools (mcp__claudezilla__firefox_*) — read pages as ref snapshots, act by ref, "
+        "take vision-sized screenshots, run JavaScript. It has none of the user's logins or tabs. Use it "
+        "for any web task that doesn't need the user's own signed-in sessions or open tabs; for those, "
+        "use the skill for the user's desktop browser if there is one.")
+intro = ("Claudezilla drives a headless Firefox that runs on this machine for agents (`firefox_*` tools): "
+         "open tabs, navigate, read pages, click, type, run JavaScript and take screenshots. It is not "
+         "the user's browser: it has none of their logins, and no tabs of theirs to attach. Sign-ins "
+         "made here persist in its own profile, and `firefox_evaluate` is enabled. Other agents on this "
+         "machine share it, so the etiquette below still applies.")
+eval_old = next(l for l in text.splitlines() if l.startswith("- `firefox_evaluate` stays disabled"))
+eval_new = "- `firefox_evaluate` is enabled here. Prefer the other tools where they do the job; use evaluate for what they can't."
+text = text.replace(desc_old, desc, 1).replace(intro_old, intro, 1).replace(eval_old, eval_new, 1)
+with open(dst, "w") as f:
+    f.write(text)
+PY
+    chmod 0644 "$dest/SKILL.md"
+  else
+    install -m 0644 "$SRC/plugin/skills/claudezilla-browser/SKILL.md" "$dest/SKILL.md"
+  fi
 }
 
 # Run local post-install hooks: each executable file in

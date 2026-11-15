@@ -13,6 +13,10 @@ Agent tabs are easier to find.
 - New tool `firefox_reveal_tab` (35 tools): selects one of the agent's tabs (or a tab you
   attached) and brings its window to the front. Agents call it when you ask to see a tab.
 - The popup lists open agent tabs, with their owner and a **Show** button for each.
+- Fixed: the pool window and attached tabs were saved by ID in `storage.local`, which outlives the
+  browser session, while Firefox reuses window and tab IDs after a restart. After a restart, the
+  pool could take over an unrelated window (in a dedicated window, claiming its tabs) or treat a
+  reused tab ID as attached. That state now lives in `storage.session`, and old copies are removed.
 
 ## v0.7.7.5 (2026-11-15)
 

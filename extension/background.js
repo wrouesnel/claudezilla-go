@@ -122,10 +122,24 @@ let activeTabId = null; // Currently active tab in the Claudezilla window
 // background restart (browser restart, extension update, event-page unload)
 // wiped the tracker while the real window survived, so the next createWindow
 // spawned a sibling — windows accumulated. State now mirrors to
-// storage.local; on restart we ADOPT the surviving window and SWEEP any
+// storage.session; on restart we ADOPT the surviving window and SWEEP any
 // duplicates left behind by earlier restarts.
 const WINDOW_STATE_KEY = 'claudezillaWindowState';
 let windowStateRestorePromise = null;
+
+// Tab and window IDs are only unique within one browser session: Firefox
+// numbers them from 1 again after a restart. Saved pool and attached-tab
+// state therefore lives in storage.session, which a browser restart clears.
+// (It was in storage.local, so after a restart a reused ID could make the pool
+// take over an unrelated user window, or treat a user's tab as attached.)
+const sessionState = browser.storage.session || null;
+async function loadSessionState(key) {
+  if (!sessionState) return undefined;
+  return (await sessionState.get(key))[key];
+}
+function saveSessionState(key, value) {
+  return sessionState ? sessionState.set({ [key]: value }) : Promise.resolve();
+}
 
 function persistWindowState() {
   const payload = claudezillaWindow
@@ -138,7 +152,7 @@ function persistWindowState() {
         adopted: !!claudezillaWindow.adopted
       }
     : null;
-  browser.storage.local.set({ [WINDOW_STATE_KEY]: payload }).catch(() => {});
+  saveSessionState(WINDOW_STATE_KEY, payload).catch(() => {});
 }
 
 function restoreWindowState() {
@@ -146,8 +160,7 @@ function restoreWindowState() {
   windowStateRestorePromise = (async () => {
     if (claudezillaWindow) return;
     try {
-      const stored = await browser.storage.local.get(WINDOW_STATE_KEY);
-      const saved = stored[WINDOW_STATE_KEY];
+      const saved = await loadSessionState(WINDOW_STATE_KEY);
       if (!saved) return;
       const win = await browser.windows.get(saved.windowId, { populate: true }).catch(() => null);
       if (!win) { persistWindowState(); return; } // window really gone — clear stale state
@@ -210,7 +223,7 @@ const attachedTabs = new Map(); // tabId -> { ownerId, attachedAt }
 let attachedTabsRestorePromise = null;
 
 async function persistAttachedTabs() {
-  await browser.storage.local.set({ [ATTACHED_TABS_KEY]: [...attachedTabs.entries()] });
+  await saveSessionState(ATTACHED_TABS_KEY, [...attachedTabs.entries()]);
 }
 
 function dropManagedPoolAttachments() {
@@ -226,8 +239,9 @@ function restoreAttachedTabs() {
   if (attachedTabsRestorePromise) return attachedTabsRestorePromise;
   attachedTabsRestorePromise = (async () => {
     try {
-      const stored = await browser.storage.local.get(ATTACHED_TABS_KEY);
-      for (const entry of stored[ATTACHED_TABS_KEY] || []) {
+      // Older versions kept these in storage.local, where IDs outlive the session.
+      await browser.storage.local.remove?.([WINDOW_STATE_KEY, ATTACHED_TABS_KEY]);
+      for (const entry of (await loadSessionState(ATTACHED_TABS_KEY)) || []) {
         if (!Array.isArray(entry) || entry.length !== 2) continue;
         const tabId = Number(entry[0]);
         const tab = await browser.tabs.get(tabId).catch(() => null);

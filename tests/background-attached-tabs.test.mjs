@@ -72,7 +72,7 @@ function createHarness({
       incognito: false,
     },
   ]).map((tab) => [tab.id, { ...tab }]));
-  const calls = { tabsCreated: 0, windowsCreated: 0, windowsRemoved: [], contentActions: [], contentTargets: [], tabCreateOptions: [], tabUpdates: [], windowUpdates: [], windowCreateOptions: [], captures: { tab: [], visible: [] }, captureOpts: [] };
+  const calls = { tabsCreated: 0, windowsCreated: 0, windowsRemoved: [], contentActions: [], contentTargets: [], tabCreateOptions: [], tabUpdates: [], windowUpdates: [], windowCreateOptions: [], localRemoved: [], captures: { tab: [], visible: [] }, captureOpts: [] };
   let resolveWindowGetStarted;
   const windowGetStarted = new Promise((resolve) => { resolveWindowGetStarted = resolve; });
   const nativeMessages = event();
@@ -99,6 +99,20 @@ function createHarness({
   const browser = {
     storage: {
       local: {
+        async get(key) {
+          if (typeof key === 'string') return { [key]: storage[key] };
+          return structuredClone(storage);
+        },
+        async set(values) {
+          Object.assign(storage, structuredClone(values));
+        },
+        async remove(keys) {
+          calls.localRemoved.push(...[].concat(keys));
+        },
+      },
+      // Seeded state is served from the same object, so tests seed window and
+      // attached-tab state the same way for either area.
+      session: {
         async get(key) {
           if (typeof key === 'string') return { [key]: storage[key] };
           return structuredClone(storage);
@@ -1099,4 +1113,16 @@ describe('finding agent tabs', () => {
     assert.equal(refused.success, false);
     assert.match(refused.error, /Not an agent tab/);
   });
+});
+
+describe('saved IDs never outlive the browser session', () => {
+  it('keeps pool and attached-tab state in storage.session and clears old local copies', async () => {
+    const harness = createHarness({ allowTabCreate: true, allowWindowCreate: true, adoptByDefault: false });
+    const created = await harness.command('createWindow', { url: 'https://example.test/one', agentId: 'agent-a' });
+    await harness.command('attachTab', { tabId: 42, agentId: 'agent-a' });
+    assert.equal(created.success, true, created.error);
+    assert.ok(harness.calls.localRemoved.includes('claudezillaWindowState'));
+    assert.ok(harness.calls.localRemoved.includes('claudezillaAttachedTabs'));
+  });
+
 });

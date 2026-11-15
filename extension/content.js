@@ -1234,6 +1234,14 @@ async function checkPageReadiness(params = {}) {
     }
   };
 
+  // A hidden tab (an agent tab in the background) paints nothing and has its
+  // timers throttled to ~1 s, so frame and idle waits only add delay there.
+  // captureTab renders the page itself.
+  if (document.visibilityState === 'hidden') {
+    result.hidden = true;
+    return result;
+  }
+
   // Wait for double RAF (ensures paint cycle complete)
   // Bounded: an unpainted tab never fires a frame, so each wait is capped
   const rafStart = performance.now();
@@ -1444,8 +1452,9 @@ async function click(params) {
   // Show focusglow on clicked element
   moveFocusTo(element);
 
-  // Scroll element into view
-  element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Scroll element into view. A hidden tab never animates a smooth scroll,
+  // so scroll instantly there (as scroll() does).
+  element.scrollIntoView({ behavior: document.visibilityState === 'visible' ? 'smooth' : 'instant', block: 'center' });
 
   // Wait for the smooth scroll to finish before aiming the click
   await waitForStableRect(element);

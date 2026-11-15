@@ -45,6 +45,12 @@ function describeClickTarget(el) {
  * @returns {Promise<void>}
  */
 function nextFrame(timeoutMs = 100) {
+  // A hidden tab paints no frames, and Firefox throttles its timers to about
+  // once a second, so the bounded wait would cost ~1 s each time for nothing.
+  // Layout reads are synchronous, so just yield.
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+    return Promise.resolve();
+  }
   return new Promise(resolve => {
     let settled = false;
     const finish = () => {

@@ -235,6 +235,25 @@ describe('waitForStableRect', () => {
     assert.equal(outcome, 'settled');
   });
 
+  it('does not wait on frames or timers in a hidden tab', async () => {
+    // Background tabs paint nothing and Firefox throttles their timers to ~1 s.
+    let rafCalls = 0;
+    const context = {
+      requestAnimationFrame: () => { rafCalls += 1; },
+      setTimeout: () => { throw new Error('timer used in a hidden tab'); },
+      clearTimeout,
+      document: { visibilityState: 'hidden' },
+    };
+    vm.createContext(context);
+    vm.runInContext(source, context);
+    const el = { getBoundingClientRect: () => ({ top: 300, left: 10 }) };
+
+    const started = Date.now();
+    await context.waitForStableRect(el);
+    assert.equal(rafCalls, 0);
+    assert.ok(Date.now() - started < 50);
+  });
+
   it('honours a caller-supplied frame timeout', async () => {
     // The per-iteration bound is a parameter: a caller that needs a tighter
     // budget than the 100 ms default can pass one in.

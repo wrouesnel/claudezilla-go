@@ -1,7 +1,18 @@
 # Changelog
 
 **Project:** claudezilla-go (a diverging fork of Claudezilla; entries from v0.7.7 down are upstream's)
-**Current Version:** 0.7.7.4
+**Current Version:** 0.7.7.5
+
+## v0.7.7.5 (2026-11-15)
+
+- Screenshots, clicks and element waits no longer stall in background tabs. Agent tabs usually
+  are in the background (hidden), where Firefox paints no frames and throttles timers to about
+  once a second, so each bounded frame wait cost about a second: about 3 s per screenshot. Frame
+  and idle waits are now skipped in hidden tabs, and clicks scroll instantly there, since a
+  hidden tab never animates a smooth scroll. Screenshot readiness reports `hidden: true`.
+- The agent-host installer gives the claudezilla-browser skill a description of the agent's own
+  headless browser, instead of the user's Firefox.
+- Both installers run executables in `~/.config/claudezilla/post-install.d/` after installing.
 
 ## v0.7.7.4 (2026-11-13)
 
